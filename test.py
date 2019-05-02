@@ -6,6 +6,7 @@ import utility
 
 with open("bot_settings.json") as f:
     settings = json.load(f)
+f.close()
 
 # Get url from settings
 url = settings["url"]
@@ -44,3 +45,4 @@ for product in productList:
     books.append([title, author, narrator, runtime, imageURL])
 
 print(utility.messageBuilder(books, today))
+
