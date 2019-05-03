@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from datetime import date
+from collections import OrderedDict
 
 def getNewBooks(url):
 
@@ -39,24 +40,22 @@ def getNewBooks(url):
                         "author": book_author,
                         "narrator": book_narrator,
                         "runtime": book_runtime,
+                        "date": book_date,
                         "imageURL": book_imageURL
                 })
 
         return books
 
 
-def messageBuilder(books):
+def messageBuilder(books, attribute_names):
         if len(books) == 0:
                 return
             
         output = ""
             
         for book in books:
-                output += "Titolo: " + book["title"] + "\n"
-                output += "Autore: " + book["author"] + "\n"
-                output += "Narratore: " + book["narrator"] + "\n"
-                output += "Durata: " + book["runtime"] + "\n"
-                output += "URL copertina: " + book["imageURL"] + "\n"
+                for key in attribute_names.keys():
+                        output += attribute_names[key] + ": " + str(book[key]) + "\n"
                 output += "\n"
         
         return output

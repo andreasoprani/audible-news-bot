@@ -4,6 +4,7 @@ import telepot
 from telepot.loop import MessageLoop
 import utility
 from datetime import date
+from collections import OrderedDict
 
 def start(chat_id, command):
     chats.append(chat_id)
@@ -35,7 +36,7 @@ def new(chat_id, command):
         todayBooks = utility.getNewBooks(settings["url"])
         updated = date.today()
     
-    new_message += utility.messageBuilder(todayBooks)
+    new_message += utility.messageBuilder(todayBooks, settings["attribute_names"])
     
     bot.sendMessage(chat_id, new_message)
 
@@ -78,7 +79,7 @@ def main():
     # Get settings from settings file
     try:
         settings_file = open("bot_settings.json")
-        settings = json.load(settings_file)
+        settings = json.load(settings_file, object_pairs_hook=OrderedDict)
         settings_file.close()
     except FileNotFoundError:
         print("Settings file not found.")
