@@ -1,9 +1,29 @@
 {
     "url": "https://www.audible.it/search?ref=a_search_c4_pageSize_3&pf_rd_p=53e7fd85-79f3-49b3-8dc2-14e1717ab80b&pf_rd_r=Z3K252XY7TP0ZN2HTSXT&publication_date=8560986031&feature_five_browse-bin=8560963031&submitted=1&sort=pubdate-desc-rank&pageSize=50",
-    "allowed_commands": {
-        "/start": "start",
-        "/stop": "stop",
-        "/help": "help",
-        "/newBooks": "newBooks"
-    }
+    "allowed_commands": [
+        {
+            "command": "/start",
+            "function": "start",
+            "description": "Attiva il bot.",
+            "message": "Ciao."
+        },
+        {
+            "command": "/stop",
+            "function": "stop",
+            "description": "Disattiva il bot.",
+            "message": "Arrivederci."
+        },
+        {
+            "command": "/help",
+            "function": "help",
+            "description": "Ottieni una lista dei comandi che puoi usare.",
+            "message": "Ecco una lista dei comandi che puoi usare:\n"
+        },
+        {
+            "command": "/new",
+            "function": "new",
+            "description": "Ottieni la lista dei libri usciti oggi su Audible.",
+            "message": "Novità di oggi.\n\n"
+        }
+    ]
 }

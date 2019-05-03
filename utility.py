@@ -1,31 +1,62 @@
-def confrontDate(date1, date2):
-        for i in range(0,len(date1)):
-                if date1[i] != date2[i]:
-                        return False
-        return True
+import requests
+from bs4 import BeautifulSoup
+from datetime import date
 
-def messageBuilder(books, date):
+def getNewBooks(url):
+
+        # GET request
+        content = requests.get(url).content
+
+        # BS data structure
+        soup = BeautifulSoup(content, features="lxml")
+
+        # Retrieve books
+        productList = soup.findAll("li", "productListItem")
+
+        # Get today date
+        today = date.today()
+
+        books = []
+
+        # Check date and get info
+        for product in productList:
+
+                # Check date
+                dateString = product.find("li", "releaseDateLabel").find("span").contents[0]
+                book_date = date(*[int(s) for s in dateString.split() if s.isdigit()][::-1])
+                if book_date != today:
+                        break
+    
+                # Get info
+                book_title = product.get("aria-label") #.encode('latin1').decode('utf-8')
+                book_author = product.find("li", "authorLabel").find("a").contents[0] #.encode('latin1').decode('utf-8')
+                book_narrator = product.find("li", "narratorLabel").find("a").contents[0] #.encode('latin1').decode('utf-8')
+                book_runtime = product.find("li", "runtimeLabel").find("span").contents[0].replace("Durata:  ","")
+                book_imageURL = product.find("img", "bc-image-inset-border").get("src")
+
+                books.append({
+                        "title": book_title,
+                        "author": book_author,
+                        "narrator": book_narrator,
+                        "runtime": book_runtime,
+                        "imageURL": book_imageURL
+                })
+
+        return books
+
+
+def messageBuilder(books):
         if len(books) == 0:
                 return
             
-        output = "Novità del " + dateString(date) + "\n\n"
-        
+        output = ""
+            
         for book in books:
-                output += "Titolo: " + book[0] + "\n"
-                output += "Autore: " + book[1] + "\n"
-                output += "Narratore: " + book[2] + "\n"
-                output += "Durata: " + book[3] + "\n"
-                output += "Image URL: " + book[4] + "\n"
+                output += "Titolo: " + book["title"] + "\n"
+                output += "Autore: " + book["author"] + "\n"
+                output += "Narratore: " + book["narrator"] + "\n"
+                output += "Durata: " + book["runtime"] + "\n"
+                output += "URL copertina: " + book["imageURL"] + "\n"
                 output += "\n"
         
-        return output
-
-def dateString(date):
-        output = ""
-        for el in date:
-                if el < 10:
-                        output += "0"
-                output += str(el)
-                if el != date[-1]:
-                        output += "-"
         return output
