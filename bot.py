@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 
 
 def sendBook(chat_id, book):
+    """Send a specific book to a specific chat."""
     
     # Build the message
     message = ""
@@ -24,6 +25,8 @@ def sendBook(chat_id, book):
     bot.sendPhoto(chat_id, book["imageURL"], caption=message)
 
 def sendBookToAll(book):
+    """Send a specific book to all the active chats."""
+    
     # Retrieve chats
     with open("chats.json") as f:
         chats = json.load(f)
@@ -33,6 +36,12 @@ def sendBookToAll(book):
         sendBook(chat["chat_id"], book)
 
 def update():
+    """
+    This function is used to check for update in the Audible catalog.
+    It checks if there are new books at the url given in the settings and it sends the latest books 
+    to all the active chats.
+    """
+    
     # Load today books
     with open("today_books.json") as f:
         todayBooks = json.load(f)
@@ -93,6 +102,11 @@ def update():
         json.dump(todayBooks, f, indent=4, separators=(',', ': '))
 
 def start(chat_id, command):
+    """
+    This function is called whenever a user uses the /start command.
+    It stores the chat_id as active in the chats.json file and it sends a welcome message to the chat.
+    """
+    
     with open("chats.json") as f:
         chats = json.load(f)
     
@@ -112,6 +126,11 @@ def start(chat_id, command):
     bot.sendMessage(chat_id, command["message"])
 
 def stop(chat_id, command):
+    """
+    This function is called whenever a user uses the /stop command.
+    It stores the chat_id as inactive in the chats.json file and it sends a goodbye message to the chat.
+    """
+    
     with open("chats.json") as f:
         chats = json.load(f)
     
@@ -131,6 +150,11 @@ def stop(chat_id, command):
     bot.sendMessage(chat_id, command["message"])
     
 def help(chat_id, command):
+    """
+    This function is called whenever a user uses the /help command.
+    It sends a help message to the chat.
+    """
+    
     help_message = command["message"]
     
     for item in settings["allowed_commands"]:
@@ -139,6 +163,11 @@ def help(chat_id, command):
     bot.sendMessage(chat_id, help_message)
 
 def today(chat_id, command):
+    """
+    This function is called whenever a user uses the /today command.
+    It sends all the books present in the today_books.json file to the chat.
+    """
+    
     # Initial today books message
     today_books_message = command["message"]
     bot.sendMessage(chat_id, today_books_message)
@@ -152,6 +181,10 @@ def today(chat_id, command):
         sendBook(chat_id, book)
 
 def handle(msg):
+    """
+    This function is the message handler.
+    It checks if the message is a valid command and calls the correct function (according to settings).
+    """
     content_type, chat_type, chat_id, date, message_id = telepot.glance(msg, long=True)
     text = msg["text"]
     
@@ -174,6 +207,12 @@ def handle(msg):
             globals()[func](chat_id, item)
 
 def main():
+    """
+    Main function.
+    It initializes the bot and it loads the settings.
+    Then it starts the message handler thread.
+    Finally it loops forever, launching the update function at a rate defined in the settings.
+    """
     
     global settings
     

@@ -1,45 +1,4 @@
 {
-    "date": "2019-05-04",
-    "books": [
-        {
-            "title": "Guns N' Roses - Belli, depravati, e molto cattivi...",
-            "author": "Lucas Pavetto",
-            "narrator": "Francesco Gabbrielli",
-            "runtime": "52 min",
-            "date": "2019-05-04",
-            "imageURL": "https://m.media-amazon.com/images/I/51jYViz2BSL._SL500_.jpg"
-        },
-        {
-            "title": "Conoscenza iniziatica",
-            "author": "Rudolf Steiner",
-            "narrator": "Silvia Cecchini",
-            "runtime": "7 ore e 47 min",
-            "date": "2019-05-04",
-            "imageURL": "https://m.media-amazon.com/images/I/41CKiQxP+8L._SL500_.jpg"
-        },
-        {
-            "title": "La sacerdotessa d'Iside",
-            "author": "Edouard Schur\u00e9",
-            "narrator": "Silvia Cecchini",
-            "runtime": "7 ore e 19 min",
-            "date": "2019-05-04",
-            "imageURL": "https://m.media-amazon.com/images/I/41nRUy+442L._SL500_.jpg"
-        },
-        {
-            "title": "La signora della tentazione",
-            "author": "Lara Adrian",
-            "narrator": "Jessica Bologna",
-            "runtime": "9 ore e 24 min",
-            "date": "2019-05-04",
-            "imageURL": "https://m.media-amazon.com/images/I/51h6SSOvMpL._SL500_.jpg"
-        },
-        {
-            "title": "Canti di Castelvecchio",
-            "author": "Giovanni Pascoli",
-            "narrator": "Silvia Cecchini",
-            "runtime": "2 ore e 43 min",
-            "date": "2019-05-04",
-            "imageURL": "https://m.media-amazon.com/images/I/41rcemHgZiL._SL500_.jpg"
-        }
-    ]
+    "date": "",
+    "books": []
 }
