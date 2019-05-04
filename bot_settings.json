@@ -1,17 +1,18 @@
 {
     "url": "https://www.audible.it/search?ref=a_search_c4_pageSize_3&pf_rd_p=53e7fd85-79f3-49b3-8dc2-14e1717ab80b&pf_rd_r=Z3K252XY7TP0ZN2HTSXT&publication_date=8560986031&feature_five_browse-bin=8560963031&submitted=1&sort=pubdate-desc-rank&pageSize=50",
+    "seconds_between_updates": 600,
     "allowed_commands": [
         {
             "command": "/start",
             "function": "start",
             "description": "Attiva il bot.",
-            "message": "Ciao."
+            "message": "Benvenuto!\nSe vuoi ricevere tutte le novità sul catalogo di Audible questo è il bot che fa per te, ti basta lasciarmi attivo e ti invierò tutte le novità appena escono.\nSe vuoi che ti mandi la lista di tutti i libri usciti oggi ti basta mandarmi un messaggio con il comando /today.\nSe vuoi sapere quali sono i comandi disponibili manda un messaggio con il comando /help.\nSe vuoi disattivarmi manda un messaggio con il comando /stop."
         },
         {
             "command": "/stop",
             "function": "stop",
             "description": "Disattiva il bot.",
-            "message": "Arrivederci."
+            "message": "Mi disattivo. Se vuoi riattivarmi puoi mandarmi un messaggio con il comando /start."
         },
         {
             "command": "/help",
@@ -20,10 +21,10 @@
             "message": "Ecco una lista dei comandi che puoi usare:\n"
         },
         {
-            "command": "/new",
-            "function": "new",
+            "command": "/today",
+            "function": "today",
             "description": "Ottieni la lista dei libri usciti oggi su Audible.",
-            "message": "Novità di oggi.\n\n"
+            "message": "Novità di oggi."
         }
     ],
     "attribute_names": {
