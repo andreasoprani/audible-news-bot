@@ -24,3 +24,11 @@ It currently supports only the italian version of Audible but it can be easily (
     * "description": brief description of the command, displayed to the player when the command /help is used.
     * "message": message sent to the user when the command is used.
 * "attribute_names": attributes of the books, used to display them correctly in each language.
+
+## Token
+
+The bot token given by Telegram should be stored in a file called 'token.txt', I obviously added it to .gitignore to prevent it from being uploaded to GitHub.
+
+## Chats
+
+The 'chats.json' file stores all the chats where the bot interacted, they are stored with their chat_id and a boolean called "active" that says if the bot should send the updates to the chat.
