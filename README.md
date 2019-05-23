@@ -26,6 +26,7 @@ It currently supports only the italian version of Audible but it can be easily (
     * "description": brief description of the command, displayed to the player when the command /help is used.
     * "message": message sent to the user when the command is used.
 * "attribute_names": attributes of the books, used to display them correctly in each language.
+<<<<<<< HEAD
 * "redirect_message": message sent when a not registered user sends a message to the bot.
 
 ### chats.json
