@@ -33,7 +33,8 @@ def sendBookToAll(book):
     
     # Send book to every chat
     for chat in chats:
-        sendBook(chat["chat_id"], book)
+        if chat["active"]:
+            sendBook(chat["chat_id"], book)
 
 def update():
     """
