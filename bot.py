@@ -103,8 +103,8 @@ def update():
 
 def start(chat_id, command):
     """
-    This function is called whenever a user uses the /start command.
-    It stores the chat_id as active in the chats.json file and it sends a welcome message to the chat.
+    This function is called when an authenticated user uses the /start command.
+    It sets the chat as active in the chats.json file and it sends a welcome message to the chat.
     """
     
     with open("chats.json") as f:
@@ -113,10 +113,7 @@ def start(chat_id, command):
     chat = next((item for item in chats if item["chat_id"]==chat_id), False)
     
     if not chat:
-        chats.append({
-            "chat_id": chat_id,
-            "active": True
-        })
+        return
     else:
         chat["active"] = True
 
@@ -127,8 +124,8 @@ def start(chat_id, command):
 
 def stop(chat_id, command):
     """
-    This function is called whenever a user uses the /stop command.
-    It stores the chat_id as inactive in the chats.json file and it sends a goodbye message to the chat.
+    This function is called whenever an authenticated user uses the /stop command.
+    It sets the chat as inactive in the chats.json file and it sends a goodbye message to the chat.
     """
     
     with open("chats.json") as f:
@@ -137,10 +134,7 @@ def stop(chat_id, command):
     chat = next((item for item in chats if item["chat_id"]==chat_id), False)
     
     if not chat:
-        chats.append({
-            "chat_id": chat_id,
-            "active": False
-        })
+        return
     else:
         chat["active"] = False
 
@@ -168,10 +162,6 @@ def today(chat_id, command):
     It sends all the books present in the today_books.json file to the chat.
     """
     
-    # Initial today books message
-    today_books_message = command["message"]
-    bot.sendMessage(chat_id, today_books_message)
-    
     # Load today books
     with open("today_books.json") as f:
         todayBooks = json.load(f)
@@ -179,6 +169,26 @@ def today(chat_id, command):
     # Send every book in today books
     for book in todayBooks["books"]:
         sendBook(chat_id, book)
+
+def status(chat_id, command):
+    """
+    This function is called whenever a user uses the /status command.
+    It sends the status of the chat.
+    """
+    
+    # Find status
+    with open("chats.json") as f:
+        chats = json.load(f)
+ 
+    chat = next((item for item in chats if item["chat_id"]==chat_id), False)
+    
+    if chat["active"]:
+        chat_status = "active"
+    else:
+        chat_status = "not active"
+    
+    # Send it
+    bot.sendMessage(chat_id, "Status: " + chat_status + ".")
 
 def handle(msg):
     """
@@ -188,21 +198,36 @@ def handle(msg):
     content_type, chat_type, chat_id, date, message_id = telepot.glance(msg, long=True)
     text = msg["text"]
     
-    print("New message", 
-          "Chat ID: " + str(chat_id), 
-          "Chat type: " + chat_type, 
-          "Content type: " + content_type, 
-          "Text: " + text, 
-          "Date: " + str(date), 
-          "Message ID: " + str(message_id), 
-          "\n")
+    # Construct log message 
+    log_message = ("New message - "
+        "Chat ID: " + str(chat_id) + ", "
+        "Chat type: " + chat_type + ", "
+        "Content type: " + content_type + ", "
+        "Text: " + text + ", "
+        "Date: " + str(date) + ", "
+        "Message ID: " + str(message_id)
+    )
+    
+    # Search the chat
+    with open("chats.json") as f:
+        chats = json.load(f)
+    chat = next((item for item in chats if item["chat_id"]==chat_id), False)
+    
+    # If the chat is not present, then dump
+    if not chat:
+        print(log_message + " - DUMPED.")
+        bot.sendMessage(chat_id, settings["redirect_message"])
+        return
+    
+    # Print log message
+    print(log_message + ".")
    
-   # if not text then dump
+    # if not text then dump
     if content_type != "text": return
 
     # Call correct function
     for item in settings["allowed_commands"]:
-        if item["command"] == text:
+        if item["command"] in text:
             func = item["function"]
             globals()[func](chat_id, item)
 
