@@ -1,6 +1,11 @@
 {
     "url": "https://www.audible.it/search?ref=a_search_c4_pageSize_3&pf_rd_p=53e7fd85-79f3-49b3-8dc2-14e1717ab80b&pf_rd_r=Z3K252XY7TP0ZN2HTSXT&publication_date=8560986031&feature_five_browse-bin=8560963031&submitted=1&sort=pubdate-desc-rank&pageSize=50",
     "seconds_between_updates": 3600,
+    "allowed_image_formats": [
+        ".jpg",
+        ".jpeg",
+        ".png"
+    ],
     "allowed_commands": [
         {
             "command": "/start",
@@ -40,6 +45,6 @@
         "runtime": "Durata",
         "date": "Data di pubblicazione"
     },
-    "redirect_message": "Questo bot è stato creato per contribuire al canale Audible Italia News.\nSe vuoi ricevere le novità del catalogo di Audible italiano non appena escono unisciti al canale.\nt.me/AudibleItaliaNews"
-
+    "redirect_message": "Questo bot è stato creato per contribuire al canale Audible Italia News.\nSe vuoi ricevere le novità del catalogo di Audible italiano non appena escono unisciti al canale.\nt.me/AudibleItaliaNews",
+    "no_image_text": "Immagine non disponibile."
 }

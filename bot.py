@@ -22,7 +22,11 @@ def sendBook(chat_id, book):
         message += settings["attribute_names"][key] + ": " + str(book[key]) + "\n"
     
     # Send the book
-    bot.sendPhoto(chat_id, book["imageURL"], caption=message)
+    if book["imageURL"][-4:].lower() not in settings["allowed_image_formats"]:
+        message += "Immagine non disponibile."
+        bot.sendMessage(chat_id, text = message)
+    else:
+        bot.sendPhoto(chat_id, book["imageURL"], caption=message)
 
 def sendBookToAll(book):
     """Send a specific book to all the active chats."""
@@ -266,7 +270,7 @@ def main():
     
     # Message handler loop
     MessageLoop(bot, handle).run_as_thread()
-    print("Listening...")
+    print("Start-up")
     
     # Update loop
     while(1):
