@@ -21,12 +21,15 @@ def sendBook(chat_id, book):
     for key in settings["attribute_names"].keys():
         message += settings["attribute_names"][key] + ": " + str(book[key]) + "\n"
     
+    url = settings["url_header"] + book["URL"]
+    message += "[" + settings["book_url_message"] + "](" + url + ")"
+    
     # Send the book
     if book["imageURL"][-4:].lower() not in settings["allowed_image_formats"]:
         message += "Immagine non disponibile."
         bot.sendMessage(chat_id, text = message)
     else:
-        bot.sendPhoto(chat_id, book["imageURL"], caption=message)
+        bot.sendPhoto(chat_id, book["imageURL"], caption=message,parse_mode="Markdown")
 
 def sendBookToAll(book):
     """Send a specific book to all the active chats."""
@@ -86,6 +89,7 @@ def update():
         book_narrator = product.find("li", "narratorLabel").find("a").contents[0] #.encode('latin1').decode('utf-8')
         book_runtime = product.find("li", "runtimeLabel").find("span").contents[0].replace("Durata:  ","")
         book_imageURL = product.find("img", "bc-image-inset-border").get("src")
+        book_URL = product.find("a", "bc-link").get("href")
 
         # Create book dict
         book = {
@@ -94,7 +98,8 @@ def update():
             "narrator": book_narrator,
             "runtime": book_runtime,
             "date": str(book_date),
-            "imageURL": book_imageURL
+            "imageURL": book_imageURL,
+            "URL": book_URL
         }
         
         # Add new books to the books list and send it to everyone
