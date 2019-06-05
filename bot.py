@@ -100,6 +100,10 @@ def update():
         # Add new books to the books list and send it to everyone
         if book not in todayBooks["books"]:
             todayBooks["books"].append(book)
+            
+            with open("log.txt","a+") as log:
+                log.write(str(datetime.datetime.now()) + " - " + str(book) + "\n")
+                
             sendBookToAll(book)
     
     # Update today_books file
@@ -270,12 +274,20 @@ def main():
     
     # Message handler loop
     MessageLoop(bot, handle).run_as_thread()
-    print("Start-up")
+    
+    print("Startup")
+    with open("log.txt","a+") as log:
+        log.write(str(datetime.datetime.now()) + " - Startup\n")
+        
     
     # Update loop
     while(1):
+        print(str(datetime.datetime.now()) + " - Update")
+        with open("log.txt","a+") as log:
+            log.write(str(datetime.datetime.now()) + " - Update\n")
+        
         update()
-        print("Update - " + str(datetime.datetime.now()) + "\n")
+        
         time.sleep(settings["seconds_between_updates"])
 
 if __name__ == "__main__":
