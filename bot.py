@@ -126,7 +126,6 @@ def start(chat_id, text, command):
     active = True
     
     # Log
-    print("Updates activated.")
     with open("log.txt","a+") as log:
         log.write(str(datetime.datetime.now()) + " - Updates activated.\n")
     
@@ -143,7 +142,6 @@ def stop(chat_id, text, command):
     active = False
     
     # Log
-    print("Updates de-activated.")
     with open("log.txt","a+") as log:
         log.write(str(datetime.datetime.now()) + " - Updates de-activated.\n")
     
@@ -229,7 +227,6 @@ def handle(msg):
                 globals()[func](chat_id, text, item)
     
     # Log
-    print(log_message)
     with open("log.txt","a+") as log:
         log.write(str(datetime.datetime.now()) + " - " + log_message + "\n")
 
@@ -273,20 +270,17 @@ def main():
     active = True
     
     # Log startup
-    print("Startup.")
     with open("log.txt","a+") as log:
-        log.write(str(datetime.datetime.now()) + " - Startup.\n")   
+        log.write(str(datetime.datetime.now()) + " - Startup.\n")
     
     # Update loop
     while(1):
         if active:
-            print(str(datetime.datetime.now()) + " - Update begins.")
             with open("log.txt","a+") as log:
                 log.write(str(datetime.datetime.now()) + " - Update begins.\n")
         
             update()
             
-            print(str(datetime.datetime.now()) + " - Update ends.")
             with open("log.txt","a+") as log:
                 log.write(str(datetime.datetime.now()) + " - Update ends.\n")
         
