@@ -3,6 +3,7 @@ import time
 import json
 import datetime
 from collections import OrderedDict
+import re
 
 # Bot related libraries
 import telepot
@@ -39,9 +40,8 @@ def sendBookToAll(book):
         chats = json.load(f)
     
     # Send book to every chat
-    for chat in chats:
-        if chat["active"]:
-            sendBook(chat["chat_id"], book)
+    for chat in chats["enabled_chats"]:
+        sendBook(chat, book)
 
 def update():
     """
@@ -115,49 +115,41 @@ def update():
     with open('today_books.json', 'w') as f:
         json.dump(todayBooks, f, indent=4, separators=(',', ': '))
 
-def start(chat_id, command):
+def start(chat_id, text, command):
     """
-    This function is called when an authenticated user uses the /start command.
-    It sets the chat as active in the chats.json file and it sends a welcome message to the chat.
+    This function is called when the admin uses the /start command.
+    It starts updates.
     """
     
-    with open("chats.json") as f:
-        chats = json.load(f)
+    # Activate updates
+    global active
+    active = True
     
-    chat = next((item for item in chats if item["chat_id"]==chat_id), False)
-    
-    if not chat:
-        return
-    else:
-        chat["active"] = True
-
-    with open('chats.json', 'w') as f:
-        json.dump(chats, f, indent=4, separators=(',', ': '))
+    # Log
+    print("Updates activated.")
+    with open("log.txt","a+") as log:
+        log.write(str(datetime.datetime.now()) + " - Updates activated.\n")
     
     bot.sendMessage(chat_id, command["message"])
 
-def stop(chat_id, command):
+def stop(chat_id, text, command):
     """
-    This function is called whenever an authenticated user uses the /stop command.
-    It sets the chat as inactive in the chats.json file and it sends a goodbye message to the chat.
+    This function is called when the admin uses the /stop command.
+    It stops updates.
     """
     
-    with open("chats.json") as f:
-        chats = json.load(f)
+    # De-activate updates
+    global active
+    active = False
     
-    chat = next((item for item in chats if item["chat_id"]==chat_id), False)
+    # Log
+    print("Updates de-activated.")
+    with open("log.txt","a+") as log:
+        log.write(str(datetime.datetime.now()) + " - Updates de-activated.\n")
     
-    if not chat:
-        return
-    else:
-        chat["active"] = False
-
-    with open('chats.json', 'w') as f:
-        json.dump(chats, f, indent=4, separators=(',', ': '))
-        
     bot.sendMessage(chat_id, command["message"])
     
-def help(chat_id, command):
+def help(chat_id, text, command):
     """
     This function is called whenever a user uses the /help command.
     It sends a help message to the chat.
@@ -170,39 +162,33 @@ def help(chat_id, command):
         
     bot.sendMessage(chat_id, help_message)
 
-def today(chat_id, command):
+def log(chat_id, text, command):
     """
-    This function is called whenever a user uses the /today command.
-    It sends all the books present in the today_books.json file to the chat.
+    This function is called whenever the admin uses the /log command.
+    It sends the log of the bot.
     """
-    
-    # Load today books
-    with open("today_books.json") as f:
-        todayBooks = json.load(f)
-    
-    # Send every book in today books
-    for book in todayBooks["books"]:
-        sendBook(chat_id, book)
 
-def status(chat_id, command):
-    """
-    This function is called whenever a user uses the /status command.
-    It sends the status of the chat.
-    """
+    # Number of lines requested
+    lines_number = int(re.sub("[^0-9]", "", text))
     
-    # Find status
-    with open("chats.json") as f:
-        chats = json.load(f)
- 
-    chat = next((item for item in chats if item["chat_id"]==chat_id), False)
+    # List of lines
+    with open("log.txt","r") as f:
+        log = f.readlines()
+
+    # Cut
+    if lines_number >= len(log):
+        lines_number = len(log)
     
-    if chat["active"]:
-        chat_status = "active"
-    else:
-        chat_status = "not active"
+    # Compose message
+    message = "\n".join(log[-lines_number:])
     
-    # Send it
-    bot.sendMessage(chat_id, "Status: " + chat_status + ".")
+    # Chunk and send
+    for i in range(0, len(message), settings["max_message_length"]):
+        bot.sendMessage(
+            chat_id, 
+            message[i : i + settings["max_message_length"]], 
+            disable_web_page_preview=True
+            )
 
 def handle(msg):
     """
@@ -222,28 +208,30 @@ def handle(msg):
         "Message ID: " + str(message_id)
     )
     
-    # Search the chat
+    # Load chats file
     with open("chats.json") as f:
         chats = json.load(f)
-    chat = next((item for item in chats if item["chat_id"]==chat_id), False)
     
-    # If the chat is not present, then dump
-    if not chat:
-        print(log_message + " - DUMPED.")
+    # Check if the user is the admin and act accordingly
+    if chat_id != chats["admin_chat"]:
+        log_message += " - DUMPED."
         bot.sendMessage(chat_id, settings["redirect_message"])
-        return
+        
+    elif content_type != "text":
+        log_message += " - DUMPED."
+        
+    else:
+        log_message += " - OK."
+        # Call correct function
+        for item in settings["allowed_commands"]:
+            if item["command"] in text:
+                func = item["function"]
+                globals()[func](chat_id, text, item)
     
-    # Print log message
-    print(log_message + ".")
-   
-    # if not text then dump
-    if content_type != "text": return
-
-    # Call correct function
-    for item in settings["allowed_commands"]:
-        if item["command"] in text:
-            func = item["function"]
-            globals()[func](chat_id, item)
+    # Log
+    print(log_message)
+    with open("log.txt","a+") as log:
+        log.write(str(datetime.datetime.now()) + " - " + log_message + "\n")
 
 def main():
     """
@@ -280,18 +268,27 @@ def main():
     # Message handler loop
     MessageLoop(bot, handle).run_as_thread()
     
-    print("Startup")
+    # Updates enabled
+    global active
+    active = True
+    
+    # Log startup
+    print("Startup.")
     with open("log.txt","a+") as log:
-        log.write(str(datetime.datetime.now()) + " - Startup\n")
-        
+        log.write(str(datetime.datetime.now()) + " - Startup.\n")   
     
     # Update loop
     while(1):
-        print(str(datetime.datetime.now()) + " - Update")
-        with open("log.txt","a+") as log:
-            log.write(str(datetime.datetime.now()) + " - Update\n")
+        if active:
+            print(str(datetime.datetime.now()) + " - Update begins.")
+            with open("log.txt","a+") as log:
+                log.write(str(datetime.datetime.now()) + " - Update begins.\n")
         
-        update()
+            update()
+            
+            print(str(datetime.datetime.now()) + " - Update ends.")
+            with open("log.txt","a+") as log:
+                log.write(str(datetime.datetime.now()) + " - Update ends.\n")
         
         time.sleep(settings["seconds_between_updates"])
 
