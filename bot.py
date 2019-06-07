@@ -50,20 +50,8 @@ def update():
     to all the active chats.
     """
     
-    # Load today books
-    with open("today_books.json") as f:
-        todayBooks = json.load(f)
-    
-    # Get today date and confront
-    today = datetime.date.today()
-    
-    # If the last update was from yesterday, set todayBooks as blank and to today
-    if todayBooks["date"] != str(today):
-        todayBooks["date"] = str(today)
-        todayBooks["books"] = []
-        
-        with open("today_books.json", "w") as f:
-            json.dump(todayBooks, f, indent=4, separators=(',', ': '))
+    with open("books.json") as f:
+        booksSent = json.load(f)
     
     # GET request
     content = requests.get(settings["url"]).content
@@ -74,14 +62,11 @@ def update():
     # Retrieve books
     productList = soup.findAll("li", "productListItem")
 
+    # List of books found in the scrape
+    booksFound = []
+
     # Check date and get info
     for product in productList:
-
-        # Check date
-        dateString = product.find("li", "releaseDateLabel").find("span").contents[0]
-        book_date = datetime.date(*[int(s) for s in dateString.split() if s.isdigit()][::-1])
-        if book_date != today:
-            break
     
         # Get info
         book_title = product.get("aria-label") #.encode('latin1').decode('utf-8')
@@ -90,6 +75,10 @@ def update():
         book_runtime = product.find("li", "runtimeLabel").find("span").contents[0].replace("Durata:  ","")
         book_imageURL = product.find("img", "bc-image-inset-border").get("src")
         book_URL = product.find("a", "bc-link").get("href")
+        
+        # Get date
+        dateString = product.find("li", "releaseDateLabel").find("span").contents[0]
+        book_date = datetime.date(*[int(s) for s in dateString.split() if s.isdigit()][::-1])
 
         # Create book dict
         book = {
@@ -102,18 +91,20 @@ def update():
             "URL": book_URL
         }
         
-        # Add new books to the books list and send it to everyone
-        if book not in todayBooks["books"]:
-            todayBooks["books"].append(book)
-            
+        # Add to new books list
+        booksFound.append(book)
+    
+    # Send new books
+    for book in booksFound:
+        if book not in booksSent:
             with open("log.txt","a+") as log:
                 log.write(str(datetime.datetime.now()) + " - " + str(book) + "\n")
-                
+        
             sendBookToAll(book)
     
-    # Update today_books file
-    with open('today_books.json', 'w') as f:
-        json.dump(todayBooks, f, indent=4, separators=(',', ': '))
+    # Update books file
+    with open('books.json', 'w') as f:
+        json.dump(booksFound, f, indent=4, separators=(',', ': '))
 
 def start(chat_id, text, command):
     """
