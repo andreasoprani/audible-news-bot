@@ -61,9 +61,8 @@ def update():
 
     # Retrieve books
     productList = soup.findAll("li", "productListItem")
-
-    # List of books found in the scrape
-    booksFound = []
+    
+    global log_update
 
     # Check date and get info
     for product in productList:
@@ -91,20 +90,27 @@ def update():
             "URL": book_URL
         }
         
-        # Add to new books list
-        booksFound.append(book)
-    
-    # Send new books
-    for book in booksFound:
         if book not in booksSent:
+            # Log
             with open("log.txt","a+") as log:
                 log.write(str(datetime.datetime.now()) + " - " + str(book) + "\n")
-        
+            log_update += str(datetime.datetime.now()) + " - " + str(book) + "\n\n"
+            
+            # Add to new books list
+            booksSent.append(book)
+            
+            # Update books file
+            with open('books.json', 'w') as f:
+                json.dump(booksSent, f, indent=4, separators=(',', ': '))
+            
+            # Send
             sendBookToAll(book)
-    
-    # Update books file
+            
+    # Delete older books
+    while len(booksSent) > settings["max_books_kept"]:
+        booksSent.pop(0)
     with open('books.json', 'w') as f:
-        json.dump(booksFound, f, indent=4, separators=(',', ': '))
+        json.dump(booksSent, f, indent=4, separators=(',', ': '))
 
 def start(chat_id, text, command):
     """
@@ -113,14 +119,17 @@ def start(chat_id, text, command):
     """
     
     # Activate updates
-    global active
-    active = True
+    with open("chats.json", "r") as f:
+        chats = json.load(f)
+    chats["active"] = True
+    with open("chats.json", "w") as f:
+        json.dump(chats, f, indent=4, separators=(',', ': '))
     
     # Log
     with open("log.txt","a+") as log:
         log.write(str(datetime.datetime.now()) + " - Updates activated.\n")
-    
-    bot.sendMessage(chat_id, command["message"])
+    global log_update
+    log_update += str(datetime.datetime.now()) + " - Updates activated.\n\n"
 
 def stop(chat_id, text, command):
     """
@@ -129,27 +138,17 @@ def stop(chat_id, text, command):
     """
     
     # De-activate updates
-    global active
-    active = False
+    with open("chats.json", "r") as f:
+        chats = json.load(f)
+    chats["active"] = False
+    with open("chats.json", "w") as f:
+        json.dump(chats, f, indent=4, separators=(',', ': '))
     
     # Log
     with open("log.txt","a+") as log:
         log.write(str(datetime.datetime.now()) + " - Updates de-activated.\n")
-    
-    bot.sendMessage(chat_id, command["message"])
-    
-def help(chat_id, text, command):
-    """
-    This function is called whenever a user uses the /help command.
-    It sends a help message to the chat.
-    """
-    
-    help_message = command["message"]
-    
-    for item in settings["allowed_commands"]:
-        help_message += item["command"] + ": " + item["description"] + "\n"
-        
-    bot.sendMessage(chat_id, help_message)
+    global log_update
+    log_update += str(datetime.datetime.now()) + " - Updates de-activated.\n\n"
 
 def log(chat_id, text, command):
     """
@@ -158,7 +157,11 @@ def log(chat_id, text, command):
     """
 
     # Number of lines requested
-    lines_number = int(re.sub("[^0-9]", "", text))
+    lines_string = re.sub("[^0-9]", "", text)
+    if lines_string == "":
+        lines_number = settings["default_log_length"]
+    else:
+        lines_number = int(lines_string)
     
     # List of lines
     with open("log.txt","r") as f:
@@ -197,36 +200,69 @@ def handle(msg):
         "Message ID: " + str(message_id)
     )
     
+    # It tells if the message has to get through
+    ok = False
+    
     # Load chats file
-    with open("chats.json") as f:
+    with open("chats.json", "r") as f:
         chats = json.load(f)
     
     # Check if the user is the admin and act accordingly
     if chat_id != chats["admin_chat"]:
         log_message += " - DUMPED."
         bot.sendMessage(chat_id, settings["redirect_message"])
-        
+
     elif content_type != "text":
         log_message += " - DUMPED."
         
     else:
         log_message += " - OK."
-        # Call correct function
-        for item in settings["allowed_commands"]:
-            if item["command"] in text:
-                func = item["function"]
-                globals()[func](chat_id, text, item)
+        ok = True   
     
     # Log
     with open("log.txt","a+") as log:
         log.write(str(datetime.datetime.now()) + " - " + log_message + "\n")
+    global log_update
+    log_update += str(datetime.datetime.now()) + " - " + log_message + "\n\n"
+    
+    # If ok, call correct function
+    if ok:
+        for item in settings["allowed_commands"]:
+            if item["command"] in text:
+                func = item["function"]
+                globals()[func](chat_id, text, item)
+
+def handleMessages():
+    
+    # Find last update id
+    with open("chats.json", "r") as f:
+        last_update = json.load(f)["last_update"]
+        
+    # Get all messages in queue.
+    updates = bot.getUpdates(offset = last_update + 1)
+    
+    # If there are no updates, return
+    if len(updates) == 0:
+        return
+    
+    # Handle every message.
+    for update in updates:
+        handle(update["message"])
+    
+    # Update the last update id 
+    with open("chats.json", "r") as f:
+        chats = json.load(f)
+    chats["last_update"] = updates[-1]["update_id"]
+    with open("chats.json", "w") as f:
+        json.dump(chats, f, indent=4, separators=(',', ': '))
 
 def main():
     """
     Main function.
     It initializes the bot and it loads the settings.
-    Then it starts the message handler thread.
-    Finally it loops forever, launching the update function at a rate defined in the settings.
+    It handles the messages.
+    It launches the update function.
+    It sends the final log to the admin.
     """
     
     global settings
@@ -253,29 +289,46 @@ def main():
     global bot
     bot = telepot.Bot(TOKEN)
     
-    # Message handler loop
-    MessageLoop(bot, handle).run_as_thread()
-    
-    # Updates enabled
-    global active
-    active = True
+    # Initialize log update for the admin
+    global log_update
+    log_update = ""
     
     # Log startup
     with open("log.txt","a+") as log:
         log.write(str(datetime.datetime.now()) + " - Startup.\n")
+    log_update += str(datetime.datetime.now()) + " - Startup.\n\n"
     
-    # Update loop
-    while(1):
-        if active:
-            with open("log.txt","a+") as log:
-                log.write(str(datetime.datetime.now()) + " - Update begins.\n")
+    # Handle messages
+    handleMessages()
+    
+    # Retrieve if updates are enabled
+    with open("chats.json", "r") as f:
+        chats = json.load(f)
+        active = chats["active"]
+    
+    # Update
+    if active:
+        with open("log.txt","a+") as log:
+            log.write(str(datetime.datetime.now()) + " - Update begins.\n")
+        log_update += str(datetime.datetime.now()) + " - Update begins.\n\n"
         
-            update()
+        update()
             
-            with open("log.txt","a+") as log:
-                log.write(str(datetime.datetime.now()) + " - Update ends.\n")
+        with open("log.txt","a+") as log:
+            log.write(str(datetime.datetime.now()) + " - Update ends.\n")
+        log_update += str(datetime.datetime.now()) + " - Update ends.\n\n"
+    
+    # Send log update to the admin
+    with open("chats.json") as f:
+        chats = json.load(f)
         
-        time.sleep(settings["seconds_between_updates"])
+        # Chunk and send
+        for i in range(0, len(log_update), settings["max_message_length"]):
+            bot.sendMessage(
+                chats["admin_chat"], 
+                log_update[i : i + settings["max_message_length"]], 
+                disable_web_page_preview=True
+                )
 
 if __name__ == "__main__":
     main()

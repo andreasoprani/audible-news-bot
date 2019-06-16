@@ -1,8 +1,9 @@
 {
     "url": "https://www.audible.it/search?ref=a_search_c4_pageSize_3&pf_rd_p=53e7fd85-79f3-49b3-8dc2-14e1717ab80b&pf_rd_r=Z3K252XY7TP0ZN2HTSXT&publication_date=8560986031&feature_five_browse-bin=8560963031&submitted=1&sort=pubdate-desc-rank&pageSize=50",
     "url_header": "https://www.audible.it/",
-    "seconds_between_updates": 21600,
+    "max_books_kept": 100,
     "max_message_length": 4096,
+    "default_log_length": 10,
     "allowed_image_formats": [
         ".jpg",
         ".jpeg",
@@ -11,27 +12,15 @@
     "allowed_commands": [
         {
             "command": "/start",
-            "function": "start",
-            "description": "Attiva gli aggiornamenti.",
-            "message": "Aggiornamenti attivati."
+            "function": "start"
         },
         {
             "command": "/stop",
-            "function": "stop",
-            "description": "Disattiva gli aggiornamenti.",
-            "message": "Aggiornamenti disattivati."
-        },
-        {
-            "command": "/help",
-            "function": "help",
-            "description": "Ottieni una lista dei comandi che puoi usare.",
-            "message": "Ecco una lista dei comandi che puoi usare:\n"
+            "function": "stop"
         },
         {
             "command": "/log",
-            "function": "log",
-            "description": "Ottieni le ultime N righe del log con il comando \"/log N\".",
-            "message": ""
+            "function": "log"
         }
     ],
     "attribute_names": {
