@@ -62,10 +62,11 @@ def update():
     # Retrieve books
     productList = soup.findAll("li", "productListItem")
     
+    
     global log_update
 
     # Check date and get info
-    for product in productList:
+    for product in reversed(productList):
     
         # Get info
         book_title = product.get("aria-label") #.encode('latin1').decode('utf-8')
@@ -291,7 +292,7 @@ def main():
     
     # Initialize log update for the admin
     global log_update
-    log_update = ""
+    log_update = "LOG - " + str(datetime.datetime.now()) + "\n\n"
     
     # Log startup
     with open("log.txt","a+") as log:
