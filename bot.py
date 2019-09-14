@@ -78,7 +78,8 @@ def update():
         
         # Get date
         dateString = product.find("li", "releaseDateLabel").find("span").contents[0]
-        book_date = datetime.date(*[int(s) for s in dateString.split() if s.isdigit()][::-1])
+        book_date = datetime.datetime.strptime(re.search(r'\d{2}/\d{2}/\d{4}', dateString).group(), "%d/%m/%Y").date()
+
 
         # Create book dict
         book = {

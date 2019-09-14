@@ -3,3 +3,5 @@
 .vscode/.ropeproject/config.py
 __pycache__/utility.cpython-37.pyc
 .vscode/.ropeproject/objectdb
+.DS_Store
+__pycache__/bot.cpython-37.pyc
