@@ -62,7 +62,6 @@ def update():
     # Retrieve books
     productList = soup.findAll("li", "productListItem")
     
-    
     global log_update
 
     # Check date and get info
@@ -70,10 +69,27 @@ def update():
     
         # Get info
         book_title = product.get("aria-label") #.encode('latin1').decode('utf-8')
-        book_author = product.find("li", "authorLabel").find("a").contents[0] #.encode('latin1').decode('utf-8')
-        book_narrator = product.find("li", "narratorLabel").find("a").contents[0] #.encode('latin1').decode('utf-8')
-        book_runtime = product.find("li", "runtimeLabel").find("span").contents[0].replace("Durata:  ","")
+        
+        book_author = product.find("li", "authorLabel")
+        if book_author is None:
+            book_author = "-"
+        else: 
+            book_author = book_author.find("a").contents[0] #.encode('latin1').decode('utf-8')
+            
+        book_narrator = product.find("li", "narratorLabel")
+        if book_narrator is None:
+            book_narrator = "-"
+        else: 
+            book_narrator = book_narrator.find("a").contents[0] #.encode('latin1').decode('utf-8')
+    
+        book_runtime = product.find("li", "runtimeLabel")
+        if book_runtime is None:
+            book_runtime = "-"
+        else:
+            book_runtime = book_runtime.find("span").contents[0].replace("Durata:  ","")
+            
         book_imageURL = product.find("img", "bc-image-inset-border").get("src")
+        
         book_URL = product.find("a", "bc-link").get("href")
         
         # Get date
@@ -212,7 +228,10 @@ def handle(msg):
     # Check if the user is the admin and act accordingly
     if chat_id != chats["admin_chat"]:
         log_message += " - DUMPED."
-        bot.sendMessage(chat_id, settings["redirect_message"])
+        try:
+            bot.sendMessage(chat_id, settings["redirect_message"])
+        except Exception as e:
+            log_message += " - " + str(e)
 
     elif content_type != "text":
         log_message += " - DUMPED."
