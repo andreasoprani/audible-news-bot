@@ -51,7 +51,7 @@ def update():
     """
     
     with open("books.json") as f:
-        booksSent = json.load(f)
+        books_sent = json.load(f)
     
     # GET request
     content = requests.get(settings["url"]).content
@@ -60,12 +60,12 @@ def update():
     soup = BeautifulSoup(content, features="lxml")
 
     # Retrieve books
-    productList = soup.findAll("li", "productListItem")
+    product_list = soup.findAll("li", "productListItem")
     
     global log_update
 
     # Check date and get info
-    for product in reversed(productList):
+    for product in reversed(product_list):
     
         # Get info
         book_title = product.get("aria-label") #.encode('latin1').decode('utf-8')
@@ -93,9 +93,8 @@ def update():
         book_URL = product.find("a", "bc-link").get("href")
         
         # Get date
-        dateString = product.find("li", "releaseDateLabel").find("span").contents[0]
-        book_date = datetime.datetime.strptime(re.search(r'\d{2}/\d{2}/\d{4}', dateString).group(), "%d/%m/%Y").date()
-
+        date_string = product.find("li", "releaseDateLabel").find("span").contents[0]
+        book_date = datetime.datetime.strptime(re.search(r'\d{2}/\d{2}/\d{4}', date_string).group(), "%d/%m/%Y").date()
 
         # Create book dict
         book = {
@@ -108,27 +107,32 @@ def update():
             "URL": book_URL
         }
         
-        if book not in booksSent:
+        is_book_present = len(list(filter(
+            lambda b: b["title"] == book["title"] and b["author"] == book["author"] and b["narrator"] == book["narrator"] and b["runtime"] == book["runtime"] and b["date"] == book["date"] and b["imageURL"] == book["imageURL"],
+            books_sent
+        ))) > 0
+        
+        if not is_book_present:
             # Log
             with open("log.txt","a+") as log:
                 log.write(str(datetime.datetime.now()) + " - " + str(book) + "\n")
             log_update += str(datetime.datetime.now()) + " - " + str(book) + "\n\n"
             
             # Add to new books list
-            booksSent.append(book)
+            books_sent.append(book)
             
             # Update books file
             with open('books.json', 'w') as f:
-                json.dump(booksSent, f, indent=4, separators=(',', ': '))
+                json.dump(books_sent, f, indent=4, separators=(',', ': '))
             
             # Send
             sendBookToAll(book)
             
     # Delete older books
-    while len(booksSent) > settings["max_books_kept"]:
-        booksSent.pop(0)
+    while len(books_sent) > settings["max_books_kept"]:
+        books_sent.pop(0)
     with open('books.json', 'w') as f:
-        json.dump(booksSent, f, indent=4, separators=(',', ': '))
+        json.dump(books_sent, f, indent=4, separators=(',', ': '))
 
 def start(chat_id, text, command):
     """
