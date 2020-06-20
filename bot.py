@@ -210,7 +210,7 @@ def handle(msg):
     It checks if the message is a valid command and calls the correct function (according to settings).
     """
     content_type, chat_type, chat_id, date, message_id = telepot.glance(msg, long=True)
-    text = msg["text"]
+    text = msg.get('text', "no text")
     
     # Construct log message 
     log_message = ("New message - "
