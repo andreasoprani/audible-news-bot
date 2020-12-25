@@ -4,12 +4,21 @@ This is a simple Telegram bot that searches for new additions to the Audible cat
 
 It currently supports only the italian version of Audible but it can be easily modified to support other Audible sites. Feel free to contact me if you wish to port this bot to your country's version of Audible.
 
-## Libraries required
+## Requirements
 
-* beautifulsoup4
-* lxml
-* requests
-* telepot
+Install requirements with:
+
+```
+pip install -r requirements.txt
+```
+
+## Running
+
+Run the bot with run.py (e.g. through cronjobs):
+
+```
+python bot.py
+```
 
 ## Settings
 
@@ -30,7 +39,6 @@ It currently supports only the italian version of Audible but it can be easily m
     * "description": brief description of the command, displayed to the player when the command /help is used.
     * "message": message sent to the user when the command is used.
 * "attribute_names": attributes of the books, used to display them correctly in each language.
-<<<<<<< HEAD
 * "redirect_message": message sent when a not registered user sends a message to the bot.
 * "no_image_text": text used when an image doesn't comply with the allowed formats.
 * "book_url_message": message that will appear as a link to the book on the audible site.
