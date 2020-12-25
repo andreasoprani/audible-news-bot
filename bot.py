@@ -25,12 +25,7 @@ def sendBook(chat_id, book):
     url = settings["url_header"] + book["URL"]
     message += "[" + settings["book_url_message"] + "](" + url + ")"
     
-    # Send the book
-    if book["imageURL"][-4:].lower() not in settings["allowed_image_formats"]:
-        message += "Immagine non disponibile."
-        bot.sendMessage(chat_id, text = message)
-    else:
-        bot.sendPhoto(chat_id, book["imageURL"], caption=message,parse_mode="Markdown")
+    bot.sendMessage(chat_id, text = message, parse_mode="Markdown")
 
 def sendBookToAll(book):
     """Send a specific book to all the active chats."""
@@ -87,8 +82,6 @@ def update():
             book_runtime = "-"
         else:
             book_runtime = book_runtime.find("span").contents[0].replace("Durata:  ","")
-            
-        book_imageURL = product.find("img", "bc-image-inset-border").get("src")
         
         book_URL = product.find("a", "bc-link").get("href")
         
@@ -103,12 +96,15 @@ def update():
             "narrator": book_narrator,
             "runtime": book_runtime,
             "date": str(book_date),
-            "imageURL": book_imageURL,
             "URL": book_URL
         }
         
         is_book_present = len(list(filter(
-            lambda b: b["title"] == book["title"] and b["author"] == book["author"] and b["narrator"] == book["narrator"] and b["runtime"] == book["runtime"] and b["date"] == book["date"] and b["imageURL"] == book["imageURL"],
+            lambda b: (b["title"] == book["title"] and 
+                       b["author"] == book["author"] and 
+                       b["narrator"] == book["narrator"] and 
+                       b["runtime"] == book["runtime"] and 
+                       b["date"] == book["date"],
             books_sent
         ))) > 0
         
