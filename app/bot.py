@@ -1,9 +1,11 @@
 # Standard libraries
+import os
 import time
 import json
 import datetime
 from collections import OrderedDict
 import re
+import schedule
 
 # Bot related libraries
 import telepot
@@ -14,29 +16,49 @@ import requests
 from bs4 import BeautifulSoup
 
 
-def sendBook(chat_id, book):
-    """Send a specific book to a specific chat."""
-    
-    # Build the message
-    message = ""
-    for key in settings["attribute_names"].keys():
-        message += settings["attribute_names"][key] + ": " + str(book[key]) + "\n"
-    
-    url = settings["url_header"] + book["URL"]
-    message += "[" + settings["book_url_message"] + "](" + url + ")"
-    
-    bot.sendMessage(chat_id, text = message, parse_mode="Markdown")
+def safe_send_message(chat_id, text, **kwargs):
+    while True:
+        try:
+            bot.sendMessage(chat_id, text, **kwargs)
+        except telepot.exception.TooManyRequestsError as e:
+            retry_after = e.json['parameters']['retry_after']
+            update_log(f"TooManyRequestsError, {retry_after} seconds.")
+            time.sleep(retry_after + 1)
+            continue
+        break
 
-def sendBookToAll(book):
-    """Send a specific book to all the active chats."""
+def update_log(append_string):
+    log_message = f"{datetime.datetime.now()} - {append_string}\n"
+    with open("data/log.txt","a+") as log:
+        log.write(log_message)
+    global log_update
+    log_update += log_message + "\n"
+
+def send_chunked_message(message):
+    for i in range(0, len(message), settings["max_message_length"]):
+        safe_send_message(
+            int(os.environ.get("ADMIN_CHAT")), 
+            message[i : i + settings["max_message_length"]], 
+            disable_web_page_preview=True
+        )
+
+def send_book_to_channel(book):
+    """Send a book to the channel chat."""
     
-    # Retrieve chats
-    with open("chats.json") as f:
-        chats = json.load(f)
+    rows = [
+        f"{value}: {str(book[key])}" for (key, value) in settings["attribute_names"].items()
+    ]
+        
+    url = settings["url_header"] + book["URL"]
+    rows.append(f'[{settings["book_url_message"]}]({url})')
     
-    # Send book to every chat
-    for chat in chats["enabled_chats"]:
-        sendBook(chat, book)
+    message = "\n".join(rows)
+    
+    safe_send_message(
+        int(os.environ.get("CHANNEL_CHAT")), 
+        message, 
+        parse_mode="Markdown"
+    )   
 
 def update():
     """
@@ -45,7 +67,7 @@ def update():
     to all the active chats.
     """
     
-    with open("books.json") as f:
+    with open("data/books.json") as f:
         books_sent = json.load(f)
     
     # GET request
@@ -56,8 +78,6 @@ def update():
 
     # Retrieve books
     product_list = soup.findAll("li", "productListItem")
-    
-    global log_update
 
     # Check date and get info
     for product in reversed(product_list):
@@ -99,35 +119,37 @@ def update():
             "URL": book_URL
         }
         
-        is_book_present = len(list(filter(
-            lambda b: (b["title"] == book["title"] and 
-                       b["author"] == book["author"] and 
-                       b["narrator"] == book["narrator"] and 
-                       b["runtime"] == book["runtime"] and 
-                       b["date"] == book["date"],
-            books_sent
-        ))) > 0
+        is_book_present = (
+            len(list(filter(
+                lambda b: (
+                    b["title"] == book["title"] and 
+                    b["author"] == book["author"] and 
+                    b["narrator"] == book["narrator"] and 
+                    b["runtime"] == book["runtime"] and 
+                    b["date"] == book["date"]
+                ), books_sent
+            ))) > 0
+        )
         
-        if not is_book_present:
-            # Log
-            with open("log.txt","a+") as log:
-                log.write(str(datetime.datetime.now()) + " - " + str(book) + "\n")
-            log_update += str(datetime.datetime.now()) + " - " + str(book) + "\n\n"
-            
-            # Add to new books list
-            books_sent.append(book)
-            
-            # Update books file
-            with open('books.json', 'w') as f:
-                json.dump(books_sent, f, indent=4, separators=(',', ': '))
-            
-            # Send
-            sendBookToAll(book)
+        if is_book_present:
+            continue
+
+        update_log(str(book))
+        
+        # Add to new books list
+        books_sent.append(book)
+        
+        # Update books file
+        with open('data/books.json', 'w') as f:
+            json.dump(books_sent, f, indent=4, separators=(',', ': '))
+        
+        # Send
+        send_book_to_channel(book)
             
     # Delete older books
     while len(books_sent) > settings["max_books_kept"]:
         books_sent.pop(0)
-    with open('books.json', 'w') as f:
+    with open('data/books.json', 'w') as f:
         json.dump(books_sent, f, indent=4, separators=(',', ': '))
 
 def start(chat_id, text, command):
@@ -137,17 +159,14 @@ def start(chat_id, text, command):
     """
     
     # Activate updates
-    with open("chats.json", "r") as f:
-        chats = json.load(f)
-    chats["active"] = True
-    with open("chats.json", "w") as f:
-        json.dump(chats, f, indent=4, separators=(',', ': '))
+    with open("data/bot_state.json", "r+") as f:
+        bot_state = json.load(f)
+        bot_state["active"] = True
+        f.seek(0)
+        json.dump(bot_state, f, indent=4, separators=(',', ': '))
+        f.truncate()
     
-    # Log
-    with open("log.txt","a+") as log:
-        log.write(str(datetime.datetime.now()) + " - Updates activated.\n")
-    global log_update
-    log_update += str(datetime.datetime.now()) + " - Updates activated.\n\n"
+    update_log("Updates activated.")
 
 def stop(chat_id, text, command):
     """
@@ -156,17 +175,14 @@ def stop(chat_id, text, command):
     """
     
     # De-activate updates
-    with open("chats.json", "r") as f:
-        chats = json.load(f)
-    chats["active"] = False
-    with open("chats.json", "w") as f:
-        json.dump(chats, f, indent=4, separators=(',', ': '))
+    with open("data/bot_state.json", "r+") as f:
+        bot_state = json.load(f)
+        bot_state["active"] = False
+        f.seek(0)
+        json.dump(bot_state, f, indent=4, separators=(',', ': '))
+        f.truncate()
     
-    # Log
-    with open("log.txt","a+") as log:
-        log.write(str(datetime.datetime.now()) + " - Updates de-activated.\n")
-    global log_update
-    log_update += str(datetime.datetime.now()) + " - Updates de-activated.\n\n"
+    update_log("Updates de-activated.")
 
 def log(chat_id, text, command):
     """
@@ -182,7 +198,7 @@ def log(chat_id, text, command):
         lines_number = int(lines_string)
     
     # List of lines
-    with open("log.txt","r") as f:
+    with open("data/log.txt","r") as f:
         log = f.readlines()
 
     # Cut
@@ -192,13 +208,8 @@ def log(chat_id, text, command):
     # Compose message
     message = "\n".join(log[-lines_number:])
     
-    # Chunk and send
-    for i in range(0, len(message), settings["max_message_length"]):
-        bot.sendMessage(
-            chat_id, 
-            message[i : i + settings["max_message_length"]], 
-            disable_web_page_preview=True
-            )
+    # send chunked
+    send_chunked_message(message)
 
 def handle(msg):
     """
@@ -221,49 +232,39 @@ def handle(msg):
     # It tells if the message has to get through
     ok = False
     
-    # Load chats file
-    with open("chats.json", "r") as f:
-        chats = json.load(f)
-    
     # Check if the user is the admin and act accordingly
-    if chat_id != chats["admin_chat"]:
+    if chat_id != int(os.environ.get("ADMIN_CHAT")):
         log_message += " - DUMPED."
-        try:
-            bot.sendMessage(chat_id, settings["redirect_message"])
+        try: # if the bot was stopped, sending a message will fail.
+            safe_send_message(chat_id, settings["redirect_message"])
         except Exception as e:
             log_message += " - " + str(e)
-
     elif content_type != "text":
         log_message += " - DUMPED."
-        
     else:
         log_message += " - OK."
         ok = True   
     
-    # Log
-    with open("log.txt","a+") as log:
-        log.write(str(datetime.datetime.now()) + " - " + log_message + "\n")
-    global log_update
-    log_update += str(datetime.datetime.now()) + " - " + log_message + "\n\n"
+    update_log(log_message)
     
     # If ok, call correct function
     if ok:
         for item in settings["allowed_commands"]:
             if item["command"] in text:
                 func = item["function"]
-                globals()[func](chat_id, text, item)
+                globals()[func](int(os.environ.get("ADMIN_CHAT")), text, item)
 
-def handleMessages():
+def handle_messages():
     
     # Find last update id
-    with open("chats.json", "r") as f:
+    with open("data/bot_state.json", "r") as f:
         last_update = json.load(f)["last_update"]
         
     # Get all messages in queue.
     updates = bot.getUpdates(offset = last_update + 1)
     
     # If there are no updates, return
-    if len(updates) == 0:
+    if not len(updates):
         return
     
     # Handle every message.
@@ -271,11 +272,12 @@ def handleMessages():
         handle(update["message"])
     
     # Update the last update id 
-    with open("chats.json", "r") as f:
-        chats = json.load(f)
-    chats["last_update"] = updates[-1]["update_id"]
-    with open("chats.json", "w") as f:
-        json.dump(chats, f, indent=4, separators=(',', ': '))
+    with open("data/bot_state.json", "r+") as f:
+        bot_state = json.load(f)
+        bot_state["last_update"] = updates[-1]["update_id"]
+        f.seek(0)
+        json.dump(bot_state, f, indent=4, separators=(',', ': '))
+        f.truncate()
 
 def main():
     """
@@ -286,70 +288,65 @@ def main():
     It sends the final log to the admin.
     """
     
-    global settings
-    
-    # Get token from token file.
+    # Create the bot.
+    global bot
     try:
-        token_file = open('token.txt', 'r')
-        TOKEN = token_file.read()
-        token_file.close()
-    except FileNotFoundError:
-        print("Token file not found.")
-        return
+        bot = telepot.Bot(os.environ.get("TOKEN"))
+    except Exception as e:
+        update_log("EXCEPTION: " + str(e))
 
     # Get settings from settings file
+    global settings
     try:
-        settings_file = open("bot_settings.json")
-        settings = json.load(settings_file, object_pairs_hook=OrderedDict)
-        settings_file.close()
+        with open("data/bot_settings.json", "r") as f:
+            settings = json.load(f)
     except FileNotFoundError:
         print("Settings file not found.")
         return
-    
-    # Create the bot.
-    global bot
-    bot = telepot.Bot(TOKEN)
     
     # Initialize log update for the admin
     global log_update
     log_update = "LOG - " + str(datetime.datetime.now()) + "\n\n"
     
-    # Log startup
-    with open("log.txt","a+") as log:
-        log.write(str(datetime.datetime.now()) + " - Startup.\n")
-    log_update += str(datetime.datetime.now()) + " - Startup.\n\n"
+    update_log("Startup.")
     
-    # Handle messages
-    handleMessages()
+    # The message handler takes care of all the messages arrived to the bot while sleeping.
+    try:
+        handle_messages()
+    except Exception as e:
+        update_log("EXCEPTION: " + str(e))
     
     # Retrieve if updates are enabled
-    with open("chats.json", "r") as f:
-        chats = json.load(f)
-        active = chats["active"]
+    with open("data/bot_state.json", "r") as f:
+        bot_state = json.load(f)
+        active = bot_state["active"]
     
     # Update
     if active:
-        with open("log.txt","a+") as log:
-            log.write(str(datetime.datetime.now()) + " - Update begins.\n")
-        log_update += str(datetime.datetime.now()) + " - Update begins.\n\n"
+        update_log("Update begins.")
+        try:
+            update()
+        except Exception as e:
+            update_log("EXCEPTION: " + str(e))
+        update_log("Update ends.")
         
-        update()
-            
-        with open("log.txt","a+") as log:
-            log.write(str(datetime.datetime.now()) + " - Update ends.\n")
-        log_update += str(datetime.datetime.now()) + " - Update ends.\n\n"
-    
-    # Send log update to the admin
-    with open("chats.json") as f:
-        chats = json.load(f)
-        
-        # Chunk and send
-        for i in range(0, len(log_update), settings["max_message_length"]):
-            bot.sendMessage(
-                chats["admin_chat"], 
-                log_update[i : i + settings["max_message_length"]], 
-                disable_web_page_preview=True
-                )
+    # send chunked
+    send_chunked_message(log_update)
 
 if __name__ == "__main__":
-    main()
+    
+    minutes = os.environ.get("MINUTES_INTERVAL")
+    hours = os.environ.get("HOURS_INTERVAL")
+    days = os.environ.get("DAYS_INTERVAL")
+    if minutes is not None:
+        schedule.every(int(minutes)).minutes.do(main)
+    elif hours is not None:
+        schedule.every(int(hours)).hours.do(main)
+    elif days is not None:
+        schedule.every(int(days)).days.do(main)
+    else:
+        schedule.every(1).hours.do(main)
+
+    while True:
+        schedule.run_pending()
+        time.sleep(60)

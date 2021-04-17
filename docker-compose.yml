@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  audible-news-bot:
+    build: .
+    volumes:
+      - './app/data:/usr/src/app/data'  
+    restart: unless-stopped
+    env_file:
+      - bot.env
