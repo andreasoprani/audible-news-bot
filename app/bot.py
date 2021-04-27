@@ -339,13 +339,13 @@ if __name__ == "__main__":
     hours = os.environ.get("HOURS_INTERVAL")
     days = os.environ.get("DAYS_INTERVAL")
     if minutes is not None:
-        schedule.every(int(minutes)).minutes.do(main)
+        schedule.every(int(minutes)).minutes.at(":00").do(main)
     elif hours is not None:
-        schedule.every(int(hours)).hours.do(main)
+        schedule.every(int(hours)).hours.at("00:00").do(main)
     elif days is not None:
-        schedule.every(int(days)).days.do(main)
+        schedule.every(int(days)).days("00:00:00").do(main)
     else:
-        schedule.every(1).hours.do(main)
+        schedule.every(1).hours.at("00:00").do(main)
 
     while True:
         schedule.run_pending()
