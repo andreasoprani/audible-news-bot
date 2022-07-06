@@ -1,4 +1,4 @@
-lxml==4.6.5
+lxml==4.9.1
 beautifulsoup4==4.7.1
 requests==2.22.0
 telepot==12.7
