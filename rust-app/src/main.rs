@@ -3,6 +3,7 @@ use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use std::fs::OpenOptions;
 use std::io::Write;
+use teloxide::Bot;
 use url::Url;
 
 static LOG_FILE: &str = "data/log.txt";
@@ -228,7 +229,7 @@ fn main() {
     // TODO: scheduling
     let mut log_str = update_log_file(&"Startup.".to_string());
 
-    // TODO: get telegram token
+    let bot = Bot::from_env(); // Needs TELOXIDE_TOKEN env variable
 
     let settings = Settings::from_file(SETTINGS_FILE);
     let bot_state = BotState::from_file(BOT_STATE_FILE);
