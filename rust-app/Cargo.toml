@@ -12,4 +12,5 @@ scraper = "0.18.1"
 serde = { version = "1.0.190", features = ["derive"] }
 serde_json = "1.0.108"
 teloxide = "0.12.2"
+tokio = "1.33.0"
 url = "2.4.1"

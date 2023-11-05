@@ -1,14 +1,18 @@
-use chrono;
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
-use std::fs::OpenOptions;
 use std::io::Write;
-use teloxide::Bot;
-use url::Url;
+use teloxide::{
+    adaptors::DefaultParseMode,
+    prelude::{Message, Requester},
+    requests::RequesterExt,
+    types::{ChatId, ParseMode},
+    utils::markdown,
+    Bot,
+};
+use tokio::runtime;
 
 static LOG_FILE: &str = "data/log.txt";
 static SETTINGS_FILE: &str = "data/bot_settings.json";
-static BOT_STATE_FILE: &str = "data/bot_state.json";
 static BOOKS_FILE: &str = "data/books.json";
 
 #[derive(Debug, Deserialize)]
@@ -40,16 +44,19 @@ impl Settings {
     }
 }
 
-#[derive(Debug, Deserialize)]
-struct BotState {
-    active: bool,
-    last_update: u64,
+struct TelegramBot {
+    bot: DefaultParseMode<Bot>,
+    channel_id: ChatId,
 }
 
-impl BotState {
-    fn from_file(filename: &str) -> Self {
-        let json = std::fs::read_to_string(filename).unwrap();
-        serde_json::from_str(&json).unwrap()
+impl TelegramBot {
+    async fn send_book(&self, book: &Book, settings: &Settings) -> Message {
+        let message = book.formatted_message(settings);
+        println!("Sending message: {}", message);
+        self.bot
+            .send_message(self.channel_id, message)
+            .await
+            .unwrap()
     }
 }
 
@@ -103,7 +110,7 @@ impl Book {
                     "Data di pubblicazione:",
                 )
                 .unwrap(),
-                url: Url::parse(
+                url: url::Url::parse(
                     format!(
                         "https://example.com{}",
                         product
@@ -144,8 +151,10 @@ impl Book {
         message.push_str(&format!("{}: {}\n", attributes_map.runtime, self.runtime));
         message.push_str(&format!("{}: {}\n", attributes_map.date, self.date));
 
-        let url = format!("{}{}", settings.url_header, self.url);
-        let url_message = format!("[{}]({})", settings.book_url_message, url);
+        message = message.replace(".", "\\."); // Escape dots
+
+        let complete_url = format!("{}{}", settings.url_header, self.url);
+        let url_message = markdown::link(complete_url.as_str(), settings.book_url_message.as_str());
         message.push_str(&url_message.as_str());
         message
     }
@@ -181,7 +190,7 @@ fn update_log_file(str_to_append: &String) -> String {
         chrono::Local::now().format("%Y-%m-%dT%H:%M:%S").to_string(),
         str_to_append
     );
-    let mut log_file = OpenOptions::new()
+    let mut log_file = std::fs::OpenOptions::new()
         .append(true)
         .create(true)
         .open(LOG_FILE)
@@ -192,14 +201,13 @@ fn update_log_file(str_to_append: &String) -> String {
     timestamped_str
 }
 
-fn books_update(settings: Settings) -> String {
+fn books_update(settings: Settings, tbot: TelegramBot) -> String {
     let mut log_str = "".to_string();
     let response = reqwest::blocking::get(&settings.url);
     let html_content = response.unwrap().text().unwrap();
     let document = Html::parse_document(&html_content);
     let books = Book::from_html_document(document);
 
-    println!("Books to send: {:#?}", books.len());
     let mut stored_books = Book::load_from_json(BOOKS_FILE);
     let books_to_send = books
         .into_iter()
@@ -207,9 +215,14 @@ fn books_update(settings: Settings) -> String {
         .collect::<Vec<Book>>();
 
     // TODO: send on telegram
+    let rt = runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+
     for book in &books_to_send {
         log_str += &update_log_file(&book.formatted_log());
-        let message = book.formatted_message(&settings);
+        rt.block_on(tbot.send_book(book, &settings));
     }
 
     stored_books.extend(books_to_send);
@@ -219,7 +232,6 @@ fn books_update(settings: Settings) -> String {
     if tot_books > settings.max_books_kept as usize {
         stored_books.drain(0..(tot_books - settings.max_books_kept as usize));
     }
-    println!("Books to write: {:#?}", stored_books.len());
     Book::write_to_file(stored_books, BOOKS_FILE);
 
     log_str
@@ -229,18 +241,23 @@ fn main() {
     // TODO: scheduling
     let mut log_str = update_log_file(&"Startup.".to_string());
 
-    let bot = Bot::from_env(); // Needs TELOXIDE_TOKEN env variable
+    let tbot = TelegramBot {
+        bot: Bot::from_env().parse_mode(ParseMode::MarkdownV2), // Needs TELOXIDE_TOKEN env variable
+        channel_id: ChatId(
+            std::env::var("CHANNEL_ID")
+                .expect("CHANNEL_ID must be present")
+                .parse()
+                .unwrap(),
+        ),
+    };
 
     let settings = Settings::from_file(SETTINGS_FILE);
-    let bot_state = BotState::from_file(BOT_STATE_FILE);
 
     // TODO: telegram commands
 
-    if bot_state.active {
-        log_str += &update_log_file(&"Update begins.".to_string());
-        books_update(settings);
-        log_str += &update_log_file(&"Update ends.".to_string());
-    }
+    log_str += &update_log_file(&"Update begins.".to_string());
+    books_update(settings, tbot);
+    log_str += &update_log_file(&"Update ends.".to_string());
 
     // TODO: send log
 }
