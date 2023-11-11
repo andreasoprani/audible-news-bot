@@ -11,4 +11,4 @@ app/data/log.txt
 app/data/books.json
 app/data/bot_state.json
 
-rust-app/target/*
+audible-news-rs/target/*
