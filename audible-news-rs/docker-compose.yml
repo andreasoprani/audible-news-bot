@@ -4,7 +4,7 @@ services:
   audible-news-rs:
     build: .
     volumes:
-      - "./data:/usr/src/audible-news-rs/data"
+      - "./data:/data"
     restart: unless-stopped
     env_file:
       - bot.env
