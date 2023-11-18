@@ -7,8 +7,10 @@ __pycache__/utility.cpython-37.pyc
 __pycache__/bot.cpython-37.pyc
 
 bot.env
-app/data/log.txt
-app/data/books.json
-app/data/bot_state.json
+audible-news-py/app/data/log.txt
+audible-news-py/app/data/books.json
+audible-news-py/app/data/bot_state.json
 
 audible-news-rs/target/*
+audible-news-rs/data/log.txt
+audible-news-rs/data/books.json
