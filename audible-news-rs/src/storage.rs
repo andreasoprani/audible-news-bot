@@ -20,7 +20,11 @@ pub trait Storage {
 }
 
 pub fn timestamp_log(log_line: &str) -> String {
-    format!("{}: {}", chrono::Utc::now().to_rfc3339(), log_line)
+    format!(
+        "{}: {}",
+        chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S").to_string(),
+        log_line
+    )
 }
 
 pub async fn init_storage() -> Result<Box<dyn Storage>, Box<dyn std::error::Error>> {
