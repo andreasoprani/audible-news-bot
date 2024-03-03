@@ -21,13 +21,3 @@ pub struct Settings {
     pub redirect_message: String,
     pub book_url_message: String,
 }
-
-impl Settings {
-    pub fn from_file(filename: &str) -> Result<Self, Box<dyn std::error::Error>> {
-        let json = std::fs::read_to_string(filename)?;
-        match serde_json::from_str(&json) {
-            Ok(s) => Ok(s),
-            Err(e) => Err(Box::new(e)),
-        }
-    }
-}

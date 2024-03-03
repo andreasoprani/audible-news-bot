@@ -1,16 +1,20 @@
 use crate::settings;
 use crate::utils;
+use derivative::Derivative;
 use scraper::{ElementRef, Html, Selector};
 use serde::{Deserialize, Serialize};
 use teloxide::utils::markdown;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Derivative, Debug, Serialize, Deserialize, Clone, Eq)]
+#[derivative(PartialEq, Hash)]
 pub struct Book {
     title: String,
     author: Option<String>,
     narrator: Option<String>,
     runtime: String,
     date: String,
+    #[derivative(PartialEq = "ignore")]
+    #[derivative(Hash = "ignore")]
     url: String,
 }
 
@@ -66,24 +70,12 @@ impl Book {
         Ok(books)
     }
 
-    pub fn load_from_json(filename: &str) -> Result<Vec<Self>, Box<dyn std::error::Error>> {
-        let json = std::fs::read_to_string(filename)?;
-        let books: Vec<Self> = serde_json::from_str(&json)?;
-        Ok(books)
-    }
-
-    pub fn store_to_json(
-        mut books: Vec<Self>,
-        filename: &str,
-        max_books: u32,
-    ) -> Result<Vec<Self>, Box<dyn std::error::Error>> {
+    pub fn limit(mut books: Vec<Self>, max_books: u32) -> Vec<Self> {
         let tot_books = books.len();
         if tot_books > max_books as usize {
             books.drain(0..(tot_books - max_books as usize));
         }
-        let json = serde_json::to_string_pretty(&books)?;
-        std::fs::write(filename, json)?;
-        return Ok(books);
+        books
     }
 
     pub fn formatted_message(&self, settings: &settings::Settings) -> String {
@@ -119,15 +111,3 @@ impl Book {
         )
     }
 }
-
-impl PartialEq for Book {
-    fn eq(&self, other: &Self) -> bool {
-        self.title == other.title
-            && self.author == other.author
-            && self.narrator == other.narrator
-            && self.date == other.date
-            && self.runtime == other.runtime
-    }
-}
-
-impl Eq for Book {}

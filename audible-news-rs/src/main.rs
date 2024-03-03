@@ -1,170 +1,138 @@
-use clokwerk::TimeUnits;
+use aws_lambda_events::event::eventbridge::EventBridgeEvent;
+use lambda_runtime::{run, service_fn, Error, LambdaEvent};
 use scraper::Html;
-use std::io::Write;
-use teloxide::{
-    requests::RequesterExt,
-    types::{ChatId, ParseMode},
-    Bot,
-};
+use serde::{Deserialize, Serialize};
+use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 
 pub mod book;
 pub mod bot;
 pub mod settings;
+pub mod storage;
 pub mod utils;
 
-static LOG_FILE: &str = "data/log.txt";
-static SETTINGS_FILE: &str = "data/bot_settings.json";
-static BOOKS_FILE: &str = "data/books.json";
-
-fn update_log_file(str_to_append: &String) -> String {
-    let mut timestamped_str = format!(
-        "{} - {}\n",
-        chrono::Local::now().format("%Y-%m-%dT%H:%M:%S").to_string(),
-        str_to_append
-    );
-    match std::fs::OpenOptions::new()
-        .append(true)
-        .create(true)
-        .open(LOG_FILE)
-    {
-        Ok(mut f) => match write!(f, "{}", timestamped_str) {
-            Err(e) => {
-                eprintln!("Couldn't write to file: {}", e);
-                timestamped_str += &format!(" - Error writing to log: {}", e);
-            }
-            _ => (),
-        },
-        Err(e) => {
-            eprintln!("Couldn't open file: {}", e);
-            timestamped_str += &format!(" - Error opening log file: {}", e);
-        }
-    };
-    timestamped_str
-}
-
-fn get_html(url: &String) -> reqwest::Result<Html> {
-    let response = reqwest::blocking::get(url);
-    let html_content = match response {
-        Ok(r) => match r.text() {
-            Ok(t) => t,
-            Err(e) => return Err(e),
-        },
-        Err(e) => return Err(e),
-    };
+async fn get_html(url: &String) -> reqwest::Result<Html> {
+    let response = reqwest::get(url.as_str()).await?;
+    let html_content = response.text().await?;
     return Ok(Html::parse_document(&html_content));
 }
 
-fn books_update(settings: settings::Settings, tbot: &bot::TelegramBot) -> String {
+async fn books_update(
+    settings: &settings::Settings,
+    tbot: &bot::TelegramBot,
+    store: &Box<dyn storage::Storage>,
+) -> Result<String, Box<dyn std::error::Error>> {
     let mut log_str = "".to_string();
 
-    let document = match get_html(&settings.url) {
+    let document = match get_html(&settings.url).await {
         Ok(d) => d,
         Err(e) => {
-            return update_log_file(&format!("Error getting html: {}", e));
+            return store
+                .update_log(&format!("Error getting html: {}", e))
+                .await;
         }
     };
 
     let books = match book::Book::from_html_document(document) {
         Ok(b) => b,
         Err(e) => {
-            return update_log_file(&format!("Error parsing html: {}", e));
+            return store
+                .update_log(&format!("Error parsing html: {}", e))
+                .await;
         }
     };
 
-    let mut stored_books = match book::Book::load_from_json(BOOKS_FILE) {
+    let mut stored_books = match store.load_stored_books().await {
         Ok(b) => b,
         Err(e) => {
-            return update_log_file(&format!("Error loading books: {}", e));
+            return store
+                .update_log(&format!("Error loading books: {}", e))
+                .await;
         }
     };
+
     let books_to_send = books
         .into_iter()
         .filter(|b| !stored_books.contains(b))
         .collect::<Vec<book::Book>>();
 
     for book in &books_to_send {
-        log_str += &update_log_file(&book.formatted_log());
-        match tbot.send_book(book, &settings) {
+        log_str += &store.update_log(&book.formatted_log()).await?;
+        match tbot.send_book(book, &settings).await {
             Ok(_) => (),
             Err(e) => {
-                log_str += &update_log_file(&format!("Error sending book: {}", e));
-                return log_str;
+                log_str += &store
+                    .update_log(&format!("Error sending book: {}", e))
+                    .await?;
+                return Ok(log_str);
             }
         };
         stored_books.push(book.clone());
-        stored_books =
-            match book::Book::store_to_json(stored_books, BOOKS_FILE, settings.max_books_kept) {
-                Ok(b) => b,
-                Err(e) => {
-                    log_str += &update_log_file(&format!("Error storing books: {}", e));
-                    return log_str;
-                }
-            };
+        stored_books = match store
+            .store_books(stored_books, settings.max_books_kept)
+            .await
+        {
+            Ok(b) => b,
+            Err(e) => {
+                log_str += &store
+                    .update_log(&format!("Error storing books: {}", e))
+                    .await?;
+                return Ok(log_str);
+            }
+        };
     }
 
-    log_str
+    Ok(log_str)
 }
 
-fn bot_fn() -> Result<(), Box<dyn std::error::Error>> {
-    let mut log_str = update_log_file(&"Startup.".to_string());
+async fn bot_fn() -> Result<(), Box<dyn std::error::Error>> {
+    let store = storage::init_storage().await?;
 
-    let settings = settings::Settings::from_file(SETTINGS_FILE)?;
+    let mut log_str = store.update_log(&"Startup.".to_string()).await?;
 
-    let tbot = bot::TelegramBot {
-        bot: Bot::from_env().parse_mode(ParseMode::MarkdownV2), // Needs TELOXIDE_TOKEN env variable
-        channel_id: ChatId(
-            std::env::var("CHANNEL_ID")
-                .expect("CHANNEL_ID must be present")
-                .parse()?,
-        ),
-        admin_chat_id: ChatId(
-            std::env::var("ADMIN_CHAT_ID")
-                .expect("ADMIN_CHAT_ID must be present")
-                .parse()?,
-        ),
-        max_message_length: settings.max_message_length,
-    };
+    let settings = store.load_settings().await?;
+
+    let tbot = bot::TelegramBot::new(&settings)?;
 
     // TODO: telegram commands
 
-    log_str += &update_log_file(&"Update begins.".to_string());
-    log_str += &books_update(settings, &tbot);
-    log_str += &update_log_file(&"Update ends.".to_string());
+    log_str += &store.update_log(&"Update begins.".to_string()).await?;
+    log_str += &books_update(&settings, &tbot, &store).await?;
+    log_str += &store.update_log(&"Update ends.".to_string()).await?;
 
-    tbot.send_message_blocking(log_str, true)?;
+    let _ = tbot.send_message_async(log_str, true).await?;
 
     return Ok(());
 }
 
-fn get_schedule_interval() -> clokwerk::Interval {
-    match std::env::var("MINUTES") {
-        Ok(s) => s.parse::<u32>().unwrap().minutes(),
-        Err(_) => match std::env::var("HOURS") {
-            Ok(s) => s.parse::<u32>().unwrap().hours(),
-            Err(_) => match std::env::var("DAYS") {
-                Ok(s) => s.parse::<u32>().unwrap().days(),
-                Err(_) => 1.hours(),
-            },
-        },
+#[derive(Serialize, Deserialize)]
+struct TriggerEvent {}
+
+async fn function_handler(
+    _event: LambdaEvent<EventBridgeEvent<TriggerEvent>>,
+) -> Result<(), Error> {
+    match bot_fn().await {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            let error_string = format!("BOT ERROR: {}", e);
+            tracing::error!("{}", error_string.as_str());
+            Err(error_string.into())
+        }
     }
 }
 
-fn main() {
-    let mut scheduler = clokwerk::Scheduler::new();
-    let interval = get_schedule_interval();
-    println!("Scheduling update every {:?}.", interval);
-    scheduler.every(interval).run(|| {
-        println!("Running update.");
-        match bot_fn() {
-            Ok(_) => (),
-            Err(e) => {
-                update_log_file(&format!("Error in update functions: {}", e));
-            }
-        }
-    });
+#[tokio::main]
+async fn main() -> Result<(), Error> {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::builder()
+                .with_default_directive(LevelFilter::INFO.into())
+                .from_env_lossy(),
+        )
+        // disable printing the name of the module in every log line.
+        .with_target(false)
+        // disabling time is handy because CloudWatch will add the ingestion time.
+        .without_time()
+        .init();
 
-    loop {
-        scheduler.run_pending();
-        std::thread::sleep(std::time::Duration::from_secs(60));
-    }
+    run(service_fn(function_handler)).await
 }
