@@ -1,7 +1,12 @@
 use crate::book;
 use crate::settings;
-use teloxide::{adaptors::DefaultParseMode, prelude::Requester, types::ChatId, Bot};
-use tokio::runtime;
+use teloxide::{
+    adaptors::DefaultParseMode,
+    prelude::Requester,
+    requests::RequesterExt,
+    types::{ChatId, ParseMode},
+    Bot,
+};
 
 pub struct TelegramBot {
     pub bot: DefaultParseMode<Bot>,
@@ -11,7 +16,25 @@ pub struct TelegramBot {
 }
 
 impl TelegramBot {
-    async fn send_message_async(
+    pub fn new(settings: &settings::Settings) -> Result<Self, Box<dyn std::error::Error>> {
+        let bot = TelegramBot {
+            bot: Bot::from_env().parse_mode(ParseMode::MarkdownV2), // Needs TELOXIDE_TOKEN env variable
+            channel_id: ChatId(
+                std::env::var("CHANNEL_ID")
+                    .expect("CHANNEL_ID must be present")
+                    .parse()?,
+            ),
+            admin_chat_id: ChatId(
+                std::env::var("ADMIN_CHAT_ID")
+                    .expect("ADMIN_CHAT_ID must be present")
+                    .parse()?,
+            ),
+            max_message_length: settings.max_message_length,
+        };
+        Ok(bot)
+    }
+
+    pub async fn send_message_async(
         &self,
         message: String,
         private: bool,
@@ -39,28 +62,13 @@ impl TelegramBot {
         }
     }
 
-    pub fn send_message_blocking(
-        &self,
-        mut message: String,
-        private: bool,
-    ) -> Result<(), teloxide::RequestError> {
-        let rt = runtime::Builder::new_multi_thread().enable_all().build()?;
-        while message.len() > 0 {
-            let to_send = message
-                .drain(..std::cmp::min(message.len(), self.max_message_length as usize))
-                .collect::<String>();
-            rt.block_on(self.send_message_async(to_send, private))?;
-        }
-        Ok(())
-    }
-
-    pub fn send_book(
+    pub async fn send_book(
         &self,
         book: &book::Book,
         settings: &settings::Settings,
     ) -> teloxide::requests::ResponseResult<()> {
         let message = book.formatted_message(settings);
         println!("Sending message: {}", message);
-        self.send_message_blocking(message, false)
+        self.send_message_async(message, false).await
     }
 }
