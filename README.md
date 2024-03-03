@@ -4,9 +4,11 @@ This is a simple Telegram bot that searches for new additions to the Audible cat
 
 It currently supports only the italian version of Audible but it can be easily modified to support other Audible sites. Feel free to contact me if you wish to port this bot to your country's version of Audible.
 
-This project was initially written in Python, it has been rewritten in Rust (as a personal exercise). Both versions are available in this repo and they work pretty much in the same way (except for the fact that the Rust version doesn't accept commands yet).
+This project was initially written in Python, it has been rewritten in Rust (as a personal exercise). Both versions are available in this repo and they work pretty much in the same way (except for the fact that the Rust version doesn't accept commands yet and that it runs on AWS Lambda instead of Docker).
 
 ## Running
+
+### Python Version
 
 The bot is containerized and it can be run with:
 
@@ -29,6 +31,12 @@ Optional (in order of priority):
 - `DAYS_INTERVAL`: if this is set, the bot will be run every `DAYS_INTERVAL` days.
 
 If none of these are set, the bot will be run every hour.
+
+### Rust version
+
+This is the latest version of the bot, it has been adapted to run on AWS Lambda (built and deployed through `cargo lambda`) using S3 for storing the persistent data.
+
+All the environment variables needed to run it are specified in the `bot.env` file.
 
 ## Data
 
