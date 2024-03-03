@@ -21,7 +21,7 @@ pub trait Storage {
 
 pub fn timestamp_log(log_line: &str) -> String {
     format!(
-        "{}: {}",
+        "{}: {}\n",
         chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S").to_string(),
         log_line
     )
