@@ -4,5 +4,6 @@ This version of the bot has been adapted to be deployed on AWS Lambda using S3 a
 
 Future improvements:
 
+- batch log writing at the end of the execution flow.
 - batch book sending (leveraging async), timeouts from the telegram's API might be a problem.
 - switch to something more sane for storing books (e.g. DynamoDB).
