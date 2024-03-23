@@ -1,3 +1,4 @@
+use crate::storage::timestamp_log;
 use aws_lambda_events::event::eventbridge::EventBridgeEvent;
 use lambda_runtime::{run, service_fn, Error, LambdaEvent};
 use scraper::Html;
@@ -26,27 +27,21 @@ async fn books_update(
     let document = match get_html(&settings.url).await {
         Ok(d) => d,
         Err(e) => {
-            return store
-                .update_log(&format!("Error getting html: {}", e))
-                .await;
+            return Ok(timestamp_log(&format!("Error getting html: {}", e)));
         }
     };
 
     let books = match book::Book::from_html_document(document) {
         Ok(b) => b,
         Err(e) => {
-            return store
-                .update_log(&format!("Error parsing html: {}", e))
-                .await;
+            return Ok(timestamp_log(&format!("Error parsing html: {}", e)));
         }
     };
 
     let mut stored_books = match store.load_stored_books().await {
         Ok(b) => b,
         Err(e) => {
-            return store
-                .update_log(&format!("Error loading books: {}", e))
-                .await;
+            return Ok(timestamp_log(&format!("Error loading books: {}", e)));
         }
     };
 
@@ -56,13 +51,11 @@ async fn books_update(
         .collect::<Vec<book::Book>>();
 
     for book in &books_to_send {
-        log_str += &store.update_log(&book.formatted_log()).await?;
+        log_str += timestamp_log(&book.formatted_log()).as_str();
         match tbot.send_book(book, &settings).await {
             Ok(_) => (),
             Err(e) => {
-                log_str += &store
-                    .update_log(&format!("Error sending book: {}", e))
-                    .await?;
+                log_str += timestamp_log(&format!("Error sending book: {}", e)).as_str();
                 return Ok(log_str);
             }
         };
@@ -73,9 +66,7 @@ async fn books_update(
         {
             Ok(b) => b,
             Err(e) => {
-                log_str += &store
-                    .update_log(&format!("Error storing books: {}", e))
-                    .await?;
+                log_str += timestamp_log(&format!("Error storing books: {}", e)).as_str();
                 return Ok(log_str);
             }
         };
@@ -87,7 +78,7 @@ async fn books_update(
 async fn bot_fn() -> Result<(), Box<dyn std::error::Error>> {
     let store = storage::init_storage().await?;
 
-    let mut log_str = store.update_log(&"Startup.".to_string()).await?;
+    let mut log_str = timestamp_log("Startup.");
 
     let settings = store.load_settings().await?;
 
@@ -95,9 +86,11 @@ async fn bot_fn() -> Result<(), Box<dyn std::error::Error>> {
 
     // TODO: telegram commands
 
-    log_str += &store.update_log(&"Update begins.".to_string()).await?;
+    log_str += timestamp_log("Update begins.").as_str();
     log_str += &books_update(&settings, &tbot, &store).await?;
-    log_str += &store.update_log(&"Update ends.".to_string()).await?;
+    log_str += timestamp_log(&"Update ends.").as_str();
+
+    store.update_log(&log_str).await?;
 
     let _ = tbot.send_message_async(log_str, true).await?;
 

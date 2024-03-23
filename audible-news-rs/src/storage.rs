@@ -8,7 +8,7 @@ pub mod s3_storage;
 pub trait Storage {
     async fn load_settings(&self) -> Result<Settings, Box<dyn std::error::Error>>;
 
-    async fn update_log(&self, log_line: &str) -> Result<String, Box<dyn std::error::Error>>;
+    async fn update_log(&self, text: &str) -> Result<String, Box<dyn std::error::Error>>;
 
     async fn load_stored_books(&self) -> Result<Vec<Book>, Box<dyn std::error::Error>>;
 

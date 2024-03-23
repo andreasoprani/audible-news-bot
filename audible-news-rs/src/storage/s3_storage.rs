@@ -1,6 +1,6 @@
 use crate::book::Book;
 use crate::settings::Settings;
-use crate::storage::{timestamp_log, Storage};
+use crate::storage::Storage;
 use async_trait::async_trait;
 
 use aws_config::{meta::region::RegionProviderChain, BehaviorVersion, Region};
@@ -59,14 +59,14 @@ impl S3Storage {
         Ok(())
     }
 
-    async fn append_string_to_s3(
+    async fn append_text_to_s3(
         &self,
         filename: &str,
-        string: &str,
+        text: &str,
         max_lines: Option<u32>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut content = self.read_string_from_s3(filename).await?;
-        content.push_str(string);
+        content.push_str(text);
         match max_lines {
             Some(max) => {
                 let lines = content.lines();
@@ -98,14 +98,13 @@ impl Storage for S3Storage {
         Ok(settings)
     }
 
-    async fn update_log(&self, log_line: &str) -> Result<String, Box<dyn std::error::Error>> {
+    async fn update_log(&self, text: &str) -> Result<String, Box<dyn std::error::Error>> {
         let log_file =
             std::env::var("LOG_TXT_FILE").expect("Missing environment variable: LOG_TXT_FILE");
-        let timestamped_str = timestamp_log(log_line);
         let _ = self
-            .append_string_to_s3(log_file.as_str(), &timestamped_str.as_str(), None)
+            .append_text_to_s3(log_file.as_str(), &text, None)
             .await?;
-        Ok(timestamped_str)
+        Ok(text.to_string())
     }
 
     async fn load_stored_books(&self) -> Result<Vec<Book>, Box<dyn std::error::Error>> {
