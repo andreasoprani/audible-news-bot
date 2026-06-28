@@ -2,15 +2,6 @@ name: Deploy Lambda
 
 on:
   workflow_dispatch:
-    inputs:
-      architecture:
-        description: Lambda architecture
-        required: true
-        default: x86_64
-        type: choice
-        options:
-          - x86_64
-          - arm64
 
 permissions:
   contents: read
@@ -55,11 +46,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          BUILD_ARGS=(--release --output-format zip)
-          if [ "${{ inputs.architecture }}" = "arm64" ]; then
-            BUILD_ARGS+=(--arm64)
-          fi
-          cargo lambda build "${BUILD_ARGS[@]}"
+          cargo lambda build --release --output-format zip
 
       - name: Deploy Lambda code
         shell: bash

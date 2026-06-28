@@ -14,7 +14,7 @@ Required GitHub configuration:
 
 The IAM role only needs permission to deploy code to this Lambda, for example `lambda:UpdateFunctionCode`, `lambda:GetFunction`, and `lambda:GetFunctionConfiguration` on the target function.
 
-To deploy: GitHub → Actions → Deploy Lambda → Run workflow. Pick the same architecture as the existing Lambda (`x86_64` or `arm64`).
+To deploy: GitHub → Actions → Deploy Lambda → Run workflow. The workflow currently builds for the default `x86_64` Lambda architecture.
 
 Future improvements:
 
