@@ -1,21 +1,27 @@
 use crate::settings;
 use crate::utils;
-use derivative::Derivative;
 use scraper::{ElementRef, Html, Selector};
 use serde::{Deserialize, Serialize};
 use teloxide::utils::markdown;
 
-#[derive(Derivative, Debug, Serialize, Deserialize, Clone, Eq)]
-#[derivative(PartialEq, Hash)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq)]
 pub struct Book {
     title: String,
     author: Option<String>,
     narrator: Option<String>,
     runtime: String,
     date: String,
-    #[derivative(PartialEq = "ignore")]
-    #[derivative(Hash = "ignore")]
     url: String,
+}
+
+impl PartialEq for Book {
+    fn eq(&self, other: &Self) -> bool {
+        self.title == other.title
+            && self.author == other.author
+            && self.narrator == other.narrator
+            && self.runtime == other.runtime
+            && self.date == other.date
+    }
 }
 
 impl Book {

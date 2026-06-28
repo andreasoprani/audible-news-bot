@@ -40,19 +40,22 @@ impl TelegramBot {
         private: bool,
     ) -> teloxide::requests::ResponseResult<()> {
         loop {
-            match (match private {
-                false => self.bot.send_message(self.channel_id, message.clone()),
-                true => self
-                    .bot
+            let result = if private {
+                self.bot
                     .inner()
-                    .send_message(self.admin_chat_id, message.clone()),
-            })
-            .await
-            {
+                    .send_message(self.admin_chat_id, message.clone())
+                    .await
+            } else {
+                self.bot
+                    .send_message(self.channel_id, message.clone())
+                    .await
+            };
+
+            match result {
                 Ok(_) => return Ok(()),
                 Err(teloxide::RequestError::RetryAfter(t)) => {
                     println!("Retry after: {:?}", t);
-                    tokio::time::sleep(t).await;
+                    tokio::time::sleep(t.duration()).await;
                 }
                 Err(e) => {
                     eprintln!("Error sending message: {}", e);
