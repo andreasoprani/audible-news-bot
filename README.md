@@ -1,79 +1,67 @@
 # Audible News Bot
 
-This is a simple Telegram bot that searches for new additions to the Audible catalog and sends them to some chats.
+Telegram bot that checks the Audible Italy catalogue for new audiobooks and posts updates to a Telegram channel.
 
-It currently supports only the italian version of Audible but it can be easily modified to support other Audible sites. Feel free to contact me if you wish to port this bot to your country's version of Audible.
+The project now contains only the Rust implementation. It runs on AWS Lambda, is triggered by EventBridge, and uses S3 for persistent settings, stored books, and logs.
 
-This project was initially written in Python, it has been rewritten in Rust (as a personal exercise). Both versions are available in this repo and they work pretty much in the same way (except for the fact that the Rust version doesn't accept commands yet and that it runs on AWS Lambda instead of Docker).
+## Configuration
 
-## Running
+Runtime environment variables are listed in `bot.env`:
 
-### Python Version
+- `TELOXIDE_TOKEN`: Telegram bot token.
+- `CHANNEL_ID`: Telegram channel/chat ID for public updates.
+- `ADMIN_CHAT_ID`: Telegram chat ID that receives execution logs.
+- `STORAGE_TYPE`: currently `S3`.
+- `S3_BUCKET`: S3 bucket containing settings/books/log files.
+- `S3_REGION`: S3 bucket region.
+- `SETTINGS_JSON_FILE`: settings object key, usually `bot_settings.json`.
+- `BOOKS_JSON_FILE`: stored books object key, usually `books.json`.
+- `LOG_TXT_FILE`: log object key, usually `log.txt`.
 
-The bot is containerized and it can be run with:
+`data/bot_settings.json` is a local/template copy of the settings file.
 
+## Deployment from GitHub Actions
+
+The repository includes `.github/workflows/deploy.yml`, a manually-triggered workflow that builds the Rust Lambda package and updates the existing AWS Lambda function code.
+
+Required GitHub configuration:
+
+- Repository variable `AWS_REGION`: AWS region of the Lambda, for example `eu-south-1`.
+- Repository variable `LAMBDA_FUNCTION_NAME`: existing Lambda function name.
+- Repository secret `AWS_GITHUB_ACTIONS_ROLE_ARN`: IAM role ARN that GitHub Actions can assume via OIDC.
+
+The IAM role only needs permission to deploy code to this Lambda, for example `lambda:UpdateFunctionCode`, `lambda:GetFunction`, and `lambda:GetFunctionConfiguration` on the target function.
+
+To deploy: GitHub → Actions → Deploy Lambda → Run workflow. The workflow currently builds for the default `x86_64` Lambda architecture.
+
+## Data files
+
+### `bot_settings.json`
+
+- `url`: Audible advanced-search URL used to retrieve the latest catalogue additions.
+- `url_header`: base URL used to complete book links.
+- `max_books_kept`: number of books kept in `books.json`; should be greater than the page size.
+- `max_message_length`: maximum Telegram message length.
+- `default_log_length`: default number of log lines for log-related commands.
+- `allowed_commands`: command names reserved by the bot.
+- `attribute_names`: localized names used when formatting book messages.
+- `redirect_message`: message for users who contact the bot directly.
+- `book_url_message`: link text for Audible book details.
+
+### `books.json`
+
+Stores books already processed by the bot. Initialize as an empty list:
+
+```json
+[]
 ```
-docker-compose up --build -d
-```
 
-In order to run it, some environment variables have to be included in a .env file (`bot.env`), these variables are:
+### `log.txt`
 
-Necessary:
+Execution log file.
 
-- `TOKEN`: the telegram api token.
-- `ADMIN_CHAT`: the id of the chat between the bot and the admin.
-- `CHANNEL_CHAT`: the id of the channel chat where the bot will send the updates.
+## Future improvements
 
-Optional (in order of priority):
-
-- `MINUTES_INTERVAL`: if this is set, the bot will be run every `MINUTES_INTERVAL` minutes.
-- `HOURS_INTERVAL`: if this is set, the bot will be run every `HOURS_INTERVAL` hours.
-- `DAYS_INTERVAL`: if this is set, the bot will be run every `DAYS_INTERVAL` days.
-
-If none of these are set, the bot will be run every hour.
-
-### Rust version
-
-This is the latest version of the bot, it has been adapted to run on AWS Lambda (built and deployed through `cargo lambda`) using S3 for storing the persistent data.
-
-All the environment variables needed to run it are specified in the `bot.env` file.
-
-## Data
-
-The `data` directory stores some information both relevant to the bot and produced by it during its execution.
-
-### bot_settings.json
-
-- `url`: advanced search url used to retrieve the latest additions to the Audible catalogues, the settings used were:
-  - Only Audiobooks.
-  - Sort by newest arrivals (important).
-  - 50 titles per page (important on frequently updated catalogue, this creates a problem if the more than 50 titles are added to the catalogue at once).
-- `url_header`: header used for book links completion.
-- `max_books_kept`: number of books kept in the books.json file, for a correct execution of the bot it should be >50.
-- `max_message_length`: maximum length of a telegram message (4096 now).
-- `default_log_length`: default number of log lines sent when the admin sends the /log command without specifying the number of lines requested
-- `allowed_image_formats`: a list of allowed image formats (e.g. `.jpg`).
-- `allowed_commands`: list of commands allowed in the chat with the bot, for each command these features are specified:
-  - `command`: correct syntax of the command (`/command`).
-  - `function`: name of the function called by the message handler.
-  - `description`: brief description of the command, displayed to the player when the command /help is used.
-  - `message`: message sent to the user when the command is used.
-- `attribute_names`: attributes of the books, used to display them correctly in each language.
-- `redirect_message`: message sent when a not registered user sends a message to the bot.
-- `no_image_text`: text used when an image doesn't comply with the allowed formats.
-- `book_url_message`: message that will appear as a link to the book on the audible site.
-
-### bot_state.json
-
-This is relevant only for the python version for now.
-
-- `last_udpate`: stores the last message id sent by the admin, set as 0 at the beginning.
-- `active`: stores a boolean that tells if the bot should check for updates or not. It is changed with the /start and /stop commands.
-
-### books.json
-
-It stores all the books found, up to a number defined in the settings. To be initialized as an empty list, i.e. `[]`.
-
-### log.txt
-
-The complete log of the bot.
+- Batch log writing at the end of the execution flow.
+- Batch book sending; Telegram API timeouts might be a problem.
+- Switch to a more suitable storage backend, e.g. DynamoDB.

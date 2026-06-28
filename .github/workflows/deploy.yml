@@ -17,10 +17,6 @@ jobs:
       LAMBDA_FUNCTION_NAME: ${{ vars.LAMBDA_FUNCTION_NAME }}
       CARGO_TERM_COLOR: always
 
-    defaults:
-      run:
-        working-directory: audible-news-rs
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,8 +35,6 @@ jobs:
 
       - name: Cache cargo build artifacts
         uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: audible-news-rs
 
       - name: Install cargo-lambda
         uses: zerj9/setup-cargo-lambda@v0.1.2
