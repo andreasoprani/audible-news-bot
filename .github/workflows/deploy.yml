@@ -1,0 +1,74 @@
+name: Deploy Lambda
+
+on:
+  workflow_dispatch:
+    inputs:
+      architecture:
+        description: Lambda architecture
+        required: true
+        default: x86_64
+        type: choice
+        options:
+          - x86_64
+          - arm64
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      LAMBDA_FUNCTION_NAME: ${{ vars.LAMBDA_FUNCTION_NAME }}
+      CARGO_TERM_COLOR: always
+
+    defaults:
+      run:
+        working-directory: audible-news-rs
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: audible-news-rs
+
+      - name: Install cargo-lambda
+        uses: cargo-lambda/cargo-lambda-action@v1
+
+      - name: Build Lambda package
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUILD_ARGS=(--release --output-format zip)
+          if [ "${{ inputs.architecture }}" = "arm64" ]; then
+            BUILD_ARGS+=(--arm64)
+          fi
+          cargo lambda build "${BUILD_ARGS[@]}"
+
+      - name: Deploy Lambda code
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP_FILE="target/lambda/audible-news-rs/bootstrap.zip"
+          test -f "$ZIP_FILE"
+          aws lambda update-function-code \
+            --function-name "$LAMBDA_FUNCTION_NAME" \
+            --zip-file "fileb://$ZIP_FILE"
+          aws lambda wait function-updated \
+            --function-name "$LAMBDA_FUNCTION_NAME"

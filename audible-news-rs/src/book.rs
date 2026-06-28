@@ -60,7 +60,7 @@ impl Book {
     }
 
     pub fn from_html_document(document: Html) -> Result<Vec<Book>, Box<dyn std::error::Error>> {
-        let selector = Selector::parse("li.productListItem")?;
+        let selector = Selector::parse("li.productListItem[id]")?;
         let products = document.select(&selector);
         let mut books = Vec::new();
         for product in products.rev() {
