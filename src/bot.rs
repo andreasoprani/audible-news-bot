@@ -1,11 +1,11 @@
 use crate::book;
 use crate::settings;
 use teloxide::{
+    Bot,
     adaptors::DefaultParseMode,
     prelude::Requester,
     requests::RequesterExt,
     types::{ChatId, ParseMode},
-    Bot,
 };
 
 pub struct TelegramBot {

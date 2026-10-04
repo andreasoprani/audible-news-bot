@@ -1,6 +1,6 @@
 use crate::storage::timestamp_log;
 use aws_lambda_events::event::eventbridge::EventBridgeEvent;
-use lambda_runtime::{run, service_fn, Error, LambdaEvent};
+use lambda_runtime::{Error, LambdaEvent, run, service_fn};
 use scraper::Html;
 use serde::{Deserialize, Serialize};
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};

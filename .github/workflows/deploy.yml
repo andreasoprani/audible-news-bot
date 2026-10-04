@@ -29,6 +29,8 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.99.0"
 
       - name: Install Zig
         uses: mlugg/setup-zig@v2

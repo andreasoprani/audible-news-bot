@@ -3,7 +3,7 @@ use crate::settings::Settings;
 use crate::storage::Storage;
 use async_trait::async_trait;
 
-use aws_config::{meta::region::RegionProviderChain, BehaviorVersion, Region};
+use aws_config::{BehaviorVersion, Region, meta::region::RegionProviderChain};
 
 pub struct S3Storage {
     pub client: aws_sdk_s3::Client,
