@@ -39,6 +39,9 @@ jobs:
       - name: Install cargo-lambda
         uses: zerj9/setup-cargo-lambda@v0.1.2
 
+      - name: Run tests
+        run: cargo test --locked
+
       - name: Build Lambda package
         shell: bash
         run: |

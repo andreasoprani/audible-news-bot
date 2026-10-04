@@ -10,6 +10,28 @@ pub fn md_escape(s: &String) -> String {
     s
 }
 
+#[cfg(test)]
+mod tests {
+    use super::md_escape;
+
+    #[test]
+    fn escapes_markdown_special_characters() {
+        assert_eq!(
+            md_escape(&r"A *title* [link](url). C:\books".to_string()),
+            r"A \*title\* \[link\]\(url\)\. C:\\books"
+        );
+    }
+
+    #[test]
+    fn leaves_plain_text_unchanged() {
+        assert_eq!(
+            md_escape(&"An ordinary title".to_string()),
+            "An ordinary title"
+        );
+        assert_eq!(md_escape(&String::new()), "");
+    }
+}
+
 #[derive(Debug)]
 pub enum TBotError {
     BookFieldNotFound(String),

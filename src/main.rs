@@ -47,7 +47,7 @@ async fn books_update(
 
     let books_to_send = books
         .into_iter()
-        .filter(|b| !stored_books.contains(b))
+        .filter(|b| !b.has_ai_narrator() && !stored_books.contains(b))
         .collect::<Vec<book::Book>>();
 
     for book in &books_to_send {

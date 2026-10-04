@@ -76,6 +76,13 @@ impl Book {
         Ok(books)
     }
 
+    pub fn has_ai_narrator(&self) -> bool {
+        self.narrator.as_ref().is_some_and(|narrator| {
+            let narrator = narrator.to_lowercase();
+            narrator.contains("virtual voice") || narrator.contains("ai voice")
+        })
+    }
+
     pub fn limit(mut books: Vec<Self>, max_books: u32) -> Vec<Self> {
         let tot_books = books.len();
         if tot_books > max_books as usize {
@@ -115,5 +122,104 @@ impl Book {
             self.date,
             self.url
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Book;
+    use scraper::Html;
+
+    fn sample_book() -> Book {
+        Book {
+            title: "Test book".into(),
+            author: Some("Jane Smith".into()),
+            narrator: None,
+            runtime: "1 hour".into(),
+            date: "2026-01-01".into(),
+            url: "/test-book".into(),
+        }
+    }
+
+    #[test]
+    fn parses_catalogue_fields_and_optional_narrator() {
+        let html = Html::parse_document(
+            r#"<li class="productListItem" id="book">
+                <h3><a class="bc-link" href="/pd/test-book">Test book</a></h3>
+                <ul>
+                    <li class="authorLabel"><span>Di: Jane Smith</span></li>
+                    <li class="runtimeLabel"><span>Durata: 1 hour</span></li>
+                    <li class="releaseDateLabel"><span>Data di pubblicazione: 2026-01-01</span></li>
+                </ul>
+            </li>"#,
+        );
+        let books = Book::from_html_document(html).unwrap();
+        assert_eq!(books.len(), 1);
+        assert_eq!(books[0], sample_book());
+        assert_eq!(books[0].url, "/pd/test-book");
+    }
+
+    #[test]
+    fn parsing_empty_catalogue_returns_no_books() {
+        let books = Book::from_html_document(Html::parse_document("<html></html>")).unwrap();
+        assert!(books.is_empty());
+    }
+
+    #[test]
+    fn parsing_book_without_required_fields_fails() {
+        let html = Html::parse_document(r#"<li class="productListItem" id="book"></li>"#);
+        assert!(Book::from_html_document(html).is_err());
+    }
+
+    #[test]
+    fn limit_keeps_newest_books_and_handles_boundaries() {
+        let books: Vec<Book> = ["Oldest", "Middle", "Newest"]
+            .into_iter()
+            .map(|title| Book {
+                title: title.into(),
+                ..sample_book()
+            })
+            .collect();
+
+        assert_eq!(Book::limit(books.clone(), 2), books[1..]);
+        assert_eq!(Book::limit(books.clone(), 3), books);
+        assert_eq!(Book::limit(books.clone(), 4), books);
+        assert!(Book::limit(books, 0).is_empty());
+        assert!(Book::limit(Vec::new(), 2).is_empty());
+    }
+
+    #[test]
+    fn book_json_round_trip_preserves_fields() {
+        let book = sample_book();
+        let json = serde_json::to_string(&book).unwrap();
+        let restored: Book = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored, book);
+        // URLs are deliberately not part of Book equality.
+        assert_eq!(restored.url, book.url);
+    }
+
+    #[test]
+    fn detects_ai_narrators() {
+        for (narrator, expected) in [
+            (Some("Virtual Voice"), true),
+            (Some("AI Voice"), true),
+            (Some(" virtual voice "), true),
+            (Some("ai VOICE"), true),
+            (Some("Jane Smith, Virtual Voice"), true),
+            (Some("AI Voice, John Smith"), true),
+            (Some("Jane Smith"), false),
+            (Some(""), false),
+            (None, false),
+        ] {
+            let book = Book {
+                title: "Test book".into(),
+                author: None,
+                narrator: narrator.map(str::to_string),
+                runtime: "1 hour".into(),
+                date: "2026-01-01".into(),
+                url: "/test-book".into(),
+            };
+            assert_eq!(book.has_ai_narrator(), expected, "{narrator:?}");
+        }
     }
 }

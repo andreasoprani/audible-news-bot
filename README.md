@@ -2,6 +2,8 @@
 
 Telegram bot that checks the Audible Italy catalogue for new audiobooks and posts updates to a Telegram channel.
 
+Note: books whose narrator includes "Virtual Voice" or "AI Voice" (case-insensitive) are excluded from updates.
+
 The project now contains only the Rust implementation. It runs on AWS Lambda, is triggered by EventBridge, and uses S3 for persistent settings, stored books, and logs.
 
 ## Configuration
@@ -33,6 +35,10 @@ Required GitHub configuration:
 The IAM role only needs permission to deploy code to this Lambda, for example `lambda:UpdateFunctionCode`, `lambda:GetFunction`, and `lambda:GetFunctionConfiguration` on the target function.
 
 To deploy: GitHub → Actions → Deploy Lambda → Run workflow. The workflow currently builds for the default `x86_64` Lambda architecture.
+
+## Testing
+
+Run `cargo fmt --check` and `cargo test --locked` locally. GitHub Actions runs both on pushes and pull requests; the deployment workflow also runs tests before building and deploying the Lambda. Unit tests do not need AWS or Telegram credentials.
 
 ## Data files
 
