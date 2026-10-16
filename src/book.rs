@@ -79,7 +79,9 @@ impl Book {
     pub fn has_ai_narrator(&self) -> bool {
         self.narrator.as_ref().is_some_and(|narrator| {
             let narrator = narrator.to_lowercase();
-            narrator.contains("virtual voice") || narrator.contains("ai voice")
+            narrator.contains("virtual voice")
+                || narrator.contains("ai voice")
+                || narrator.contains("voce virtuale")
         })
     }
 
@@ -203,6 +205,8 @@ mod tests {
         for (narrator, expected) in [
             (Some("Virtual Voice"), true),
             (Some("AI Voice"), true),
+            (Some("Voce virtuale"), true),
+            (Some("VOCE VIRTUALE, Jane Smith"), true),
             (Some(" virtual voice "), true),
             (Some("ai VOICE"), true),
             (Some("Jane Smith, Virtual Voice"), true),

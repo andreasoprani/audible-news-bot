@@ -2,7 +2,7 @@
 
 Telegram bot that checks the Audible Italy catalogue for new audiobooks and posts updates to a Telegram channel.
 
-Note: books whose narrator includes "Virtual Voice" or "AI Voice" (case-insensitive) are excluded from updates.
+Note: books whose narrator includes "Virtual Voice", "AI Voice", or "Voce virtuale" (case-insensitive) are excluded from updates.
 
 The project now contains only the Rust implementation. It runs on AWS Lambda, is triggered by EventBridge, and uses S3 for persistent settings, stored books, and logs.
 
